@@ -3,7 +3,6 @@ from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 
-import printer
 import utils
 
 ABSTRACTION = {
@@ -224,7 +223,6 @@ class EarthObservationAbstractMDP:
         for abstract_state, ground_states in self.abstract_states.items():
             abstract_rewards[abstract_state] = {}
             for abstract_action in self.abstract_actions:
-                printer.print_loading_bar(statistics['count'], statistics['total'], 'Abstract Rewards')
                 statistics['count'] += 1
 
                 ground_rewards = [mdp.reward_function(ground_state, abstract_action) for ground_state in ground_states]
@@ -243,7 +241,6 @@ class EarthObservationAbstractMDP:
             statistics = {'count': 0, 'total': len(state_space_partitions)}
 
             for state_space in state_space_partitions:
-                printer.print_loading_bar(statistics['count'], statistics['total'], "Abstract Transition Probabilities")
                 statistics['count'] += 1
 
                 partition_future = pool.submit(task, mdp, state_space, self)
@@ -264,7 +261,6 @@ class EarthObservationAbstractMDP:
         normalizer = 0
 
         for abstract_state, ground_states in self.abstract_states.items():
-            printer.print_loading_bar(statistics['count'], statistics['total'], 'Abstract Start State Probabilities')
             statistics['count'] += 1
 
             ground_start_state_probabilities = [mdp.start_state_function(ground_state) for ground_state in ground_states]

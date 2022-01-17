@@ -53,7 +53,7 @@ def main():
             logging.info("Finished the policy sketch refine algorithm: [time=%f]", time.time() - start)
 
             start = time.time()
-            values = utils.get_ground_entities(solution['values'], ground_mdp, abstract_mdp)
+            values = utils.get_ground_values(solution['values'], ground_mdp, abstract_mdp)
             logging.info("Calculated the values from the solution of policy sketch refine: [time=%f]", time.time() - start)
 
             start = time.time()

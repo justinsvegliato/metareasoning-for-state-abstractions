@@ -1,6 +1,5 @@
 from concurrent.futures import ProcessPoolExecutor
 
-import printer
 import utils
 
 NUM_PROCESSES = 8
@@ -72,7 +71,6 @@ class PartiallyAbstractMDP:
 
             # TODO Make the lookup in this for loop more efficient
             for action in self.action_space:
-                printer.print_loading_bar(statistics['count'], statistics['total'], 'Partially Abstract Rewards')
                 statistics['count'] += 1
 
                 # For a ground state, copy the reward from the ground MDP
@@ -101,7 +99,6 @@ class PartiallyAbstractMDP:
             statistics = {'count': 0, 'total': len(state_space_partitions)}
 
             for state_space in state_space_partitions:
-                printer.print_loading_bar(statistics['count'], statistics['total'], "Partially Abstract Transition Probabilities")
                 statistics['count'] += 1
 
                 partition_future = pool.submit(task, abstract_mdp, ground_mdp, state_space, ground_state_set, abstract_state_set, self)
@@ -120,7 +117,6 @@ class PartiallyAbstractMDP:
         statistics = {'count': 0, 'total': len(self.state_space)}
 
         for state in self.state_space:
-            printer.print_loading_bar(statistics['count'], statistics['total'], "Partially Abstract Start State Probabilities")
             statistics['count'] += 1
 
             start_state_probabilities[state] = 0

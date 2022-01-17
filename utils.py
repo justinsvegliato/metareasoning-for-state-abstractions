@@ -1,17 +1,17 @@
 import random
 
 
-def get_ground_entities(entities, ground_mdp, abstract_mdp):
-    ground_entities = {}
+def get_ground_values(values, ground_mdp, abstract_mdp):
+    ground_values = {}
 
     for ground_state in ground_mdp.states():
-        if ground_state in entities:
-            ground_entities[ground_state] = entities[ground_state]
+        if ground_state in values:
+            ground_values[ground_state] = values[ground_state]
         else:
             abstract_state = abstract_mdp.get_abstract_state(ground_state)
-            ground_entities[ground_state] = entities[abstract_state]
+            ground_values[ground_state] = values[abstract_state]
 
-    return ground_entities
+    return ground_values
 
 
 def get_ground_policy(values, ground_mdp, abstract_mdp, ground_states, abstract_state, gamma):
