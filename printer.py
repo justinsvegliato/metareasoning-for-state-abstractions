@@ -82,7 +82,7 @@ def print_mdp(mdp):
     print_start_state_function(mdp)
 
 
-def print_earth_observation_policy(earth_observation_mdp, state_history=[], expanded_state_policy={}, policy_cache={}):
+def print_earth_observation_policy(earth_observation_mdp, visited_ground_states=[], expanded_ground_states=[], ground_policy_cache={}):
     BORDER_SIZE = 150
     SYMBOLS = {
         0: '\u00b7',
@@ -106,7 +106,7 @@ def print_earth_observation_policy(earth_observation_mdp, state_history=[], expa
         for column in range(width):
             location = (row, column)
 
-            current_state = state_history[-1]
+            current_state = visited_ground_states[-1]
             _, current_poi_weather = earth_observation_mdp.get_state_factors_from_state(current_state)
 
             state = earth_observation_mdp.get_state_from_state_factors(location, current_poi_weather)
@@ -116,17 +116,17 @@ def print_earth_observation_policy(earth_observation_mdp, state_history=[], expa
                 weather_symbol = SYMBOLS[current_poi_weather[location]]
                 symbol = weather_symbol
             else:
-                if state in policy_cache:
-                    action = policy_cache[state]
+                if state in ground_policy_cache:
+                    action = ground_policy_cache[state]
                     symbol = SYMBOLS[action]
                 else:
                     symbol = "\u2A09"
 
-            if state == state_history[-1]:
+            if state == visited_ground_states[-1]:
                 symbol = colored(symbol, 'red')
-            elif state in expanded_state_policy:
+            elif state in expanded_ground_states:
                 symbol = colored(symbol, 'blue')
-            elif state in policy_cache:
+            elif state in ground_policy_cache:
                 symbol = colored(symbol, 'green')
 
             text += symbol

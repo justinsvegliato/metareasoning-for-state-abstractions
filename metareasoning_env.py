@@ -9,11 +9,12 @@ from gym import spaces
 
 import cplex_mdp_solver
 import policy_sketch_refine
+import printer
 import utils
 from earth_observation_abstract_mdp import EarthObservationAbstractMDP
 from earth_observation_mdp import EarthObservationMDP
 
-SIZE = (6, 3)
+SIZE = (3, 6)
 POINTS_OF_INTEREST = 2
 VISIBILITY = None
 
@@ -80,13 +81,14 @@ class MetareasoningEnv(gym.Env):
       self.ground_policy_cache[ground_state] = ground_policy[ground_state]
     logging.info("-- Updated the ground policy cache for the new abstract state: [%s]", self.current_abstract_state)
 
-    logging.info("-- Simulating the world...")
+    logging.info("Environment Simulator")
     while self.current_ground_state in self.solved_ground_states and self.steps <= HORIZON:
       self.visited_ground_states.append(self.current_ground_state)
 
-      self.current_action = self.ground_policy_cache[self.current_ground_state]
+      self.current_action = self.ground_policy_cache[self.current_ground_state] 
 
-      logging.info("---- Updated the current ground state, abstract state, and action: [%s, %s, %s]", self.current_ground_state, self.current_abstract_state, self.current_action)
+      logging.info(">>>> Ground State: [%s] | Abstract State: [%s] | Action: [%s]", self.current_ground_state, self.current_abstract_state, self.current_action)
+      printer.print_earth_observation_policy(self.ground_mdp, visited_ground_states=self.visited_ground_states, expanded_ground_states=ground_states, ground_policy_cache=self.ground_policy_cache)
 
       self.current_ground_state = utils.get_successor_state(self.current_ground_state, self.current_action, self.ground_mdp)
       self.current_abstract_state = self.abstract_mdp.get_abstract_state(self.current_ground_state)
@@ -174,7 +176,7 @@ def main():
   
   print(env.reset())
 
-  for i in range(5):
+  for _ in range(5):
     print(env.step(2))
 
 
