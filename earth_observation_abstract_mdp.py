@@ -81,7 +81,6 @@ def task(mdp, state_space, abstract_mdp):
                             # for ground_successor_state in sampled_ground_successor_states:
                             #    ground_transition_probabilities.append(mdp.transition_function(ground_state, abstract_action, ground_successor_state))
 
-
                             likely_ground_successor_states = mdp.get_successors(ground_state, abstract_action)
                             for ground_successor_state in ground_successor_states:
                                 if ground_successor_state in likely_ground_successor_states:
@@ -155,7 +154,7 @@ def task(mdp, state_space, abstract_mdp):
 
 
 class EarthObservationAbstractMDP:
-    # TODO: Test and polish this function
+    # TODO Test and polish this function
     def compute_abstract_states(self, mdp):
         abstract_states = {}
 
@@ -207,7 +206,7 @@ class EarthObservationAbstractMDP:
                                 elif (math.floor(partial_weather_partition_status / location_divisor < 2)):
                                     eligible_weather_states = [x for x in eligible_weather_states if math.floor((x % pow(visibility_fidelity, location_index + 1)) / pow(visibility_fidelity, location_index)) in weather_partition[1]]
                                 else:
-                                    assert "sum ting wong"
+                                    assert "Something went wrong"
 
                                 partial_weather_partition_status = partial_weather_partition_status % location_divisor
 
@@ -297,8 +296,8 @@ class EarthObservationAbstractMDP:
 
         self.ground_states = {}
 
-        # NOTE: You can use the basic trans probs with either abstract state space representation. However, you 
-        # must use the regular (includes weather) abstraction when using the regular transition function
+        # NOTE You can use the basic transition probability with either abstract state space representation. 
+        # However, you must use the regular (includes weather) abstraction when using the regular transition function.
         self.abstract_states = self.compute_abstract_states(mdp)
         self.abstract_actions = mdp.actions()
         self.abstract_rewards = self.__compute_abstract_rewards(mdp)

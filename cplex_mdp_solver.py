@@ -49,7 +49,7 @@ def validate(memory_mdp, constant_state_values):
     assert all(state in memory_mdp.states for state in constant_state_values)
 
 
-# TODO: Determine if we need lower and upper bounds in this function
+# TODO Determine if we need lower and upper bounds in this function
 def set_variables(problem, memory_mdp, constant_state_values):
     n_variable_states = memory_mdp.n_states - len(constant_state_values)
 
@@ -123,7 +123,7 @@ def set_constraints(problem, memory_mdp, gamma, constant_state_values):
                         coefficient = 1 - gamma * memory_mdp.transition_probabilities[i, j, k]
                     coefficients.append(coefficient)
 
-            # TODO: Determine why this problem happens
+            # TODO Determine why this problem happens
             if sum(coefficients) <= 0 < right_hand_side:
                 continue
 
@@ -131,8 +131,8 @@ def set_constraints(problem, memory_mdp, gamma, constant_state_values):
             if all(coefficient == 0 for coefficient in coefficients):
                 continue
 
-            # TODO: Avoid using 0 coefficients altogether if necessary for space complexity
-            # TODO: Do we need to cast the right hand side as a float - seems not needed
+            # TODO Avoid using 0 coefficients altogether if necessary for space complexity
+            # TODO Do we need to cast the right hand side as a float - seems not needed
             linear_expressions.append([variables, coefficients])
             right_hand_sides.append(float(right_hand_side))
             names.append(f'{state}_{memory_mdp.actions[j]}')
@@ -143,7 +143,7 @@ def set_constraints(problem, memory_mdp, gamma, constant_state_values):
     problem.linear_constraints.add(names=names, lin_expr=linear_expressions, rhs=right_hand_sides, senses=senses)
 
 
-# TODO: Clean this up - there might be a better way to do it
+# TODO Clean this up - there might be a better way to do it
 def get_policy(values, memory_mdp, gamma, constant_state_values):
     policy = []
 
@@ -214,7 +214,7 @@ def solve_optimally(problem):
     if status in infeasible_statuses:
         return 'INFEASIBLE'
 
-    # TODO: Address the case when the solution is not MIP optimal - could be infeasible or suboptimal
+    # TODO Address the case when the solution is not MIP optimal - could be infeasible or suboptimal
     return None
 
 
@@ -232,7 +232,7 @@ def solve_feasibly(problem):
     if status in success_statuses:
         return 'SUCCESS'
 
-    # TODO: Address the case when the solution is not MIP optimal - could be infeasible or suboptimal
+    # TODO Address the case when the solution is not MIP optimal - could be infeasible or suboptimal
     return None
 
 
@@ -257,7 +257,7 @@ def solve(mdp, gamma, constant_state_values={}, relax_infeasible=False):
         values = problem.solution.get_values()
         policy = get_policy(values, memory_mdp, gamma, constant_state_values)
 
-        # TODO: Clean up all of this stuff
+        # TODO Clean up all of this stuff
         variable_states = []
         for i in range(memory_mdp.n_states):
             state = memory_mdp.states[i]

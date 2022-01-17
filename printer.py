@@ -82,59 +82,6 @@ def print_mdp(mdp):
     print_start_state_function(mdp)
 
 
-def print_grid_world_policy(grid_world, policy, visited_states=[], expanded_states={}):
-    SYMBOLS = {
-        'STAY': '\u2205',
-        'NORTH': '\u2191',
-        'EAST': '\u2192',
-        'SOUTH': '\u2193',
-        'WEST': '\u2190'
-    }
-
-    height = len(grid_world)
-    width = len(grid_world[0])
-
-    for row in range(height):
-        text = ""
-
-        for column in range(width):
-            state = len(grid_world[row]) * row + column
-
-            symbol = None
-            if grid_world[row][column] == 'W':
-                symbol = '\u25A0'
-            else:
-                symbol = SYMBOLS[policy[state] if state not in expanded_states else expanded_states[state]]
-
-            if state in visited_states:
-                symbol = colored(symbol, 'red')
-            elif state in expanded_states:
-                symbol = colored(symbol, 'blue')
-
-            text += symbol
-            text += "  "
-
-        print(f"{text}")
-
-
-def print_grid_world_values(grid_world, values):
-    height = len(grid_world)
-    width = len(grid_world[0])
-
-    for row in range(height):
-        text = ""
-
-        for column in range(width):
-            state = len(grid_world[row]) * row + column
-            if grid_world[row][column] == 'W':
-                text += "{:^5s}".format('\u25A0')
-            else:
-                text += "{:^5.2f}".format(values[state])
-            text += "  "
-
-        print(f"{text}")
-
-
 def print_earth_observation_policy(earth_observation_mdp, state_history=[], expanded_state_policy={}, policy_cache={}):
     BORDER_SIZE = 150
     SYMBOLS = {

@@ -128,7 +128,7 @@ class EarthObservationMDP:
     def get_successors(self, state, action):
         successors = []
 
-        # TODO: do the weather part for even more speedup / accuracy
+        # TODO do the weather part for even more speedup / accuracy
         location, _ = self.get_state_factors_from_state(state)
 
         successor_location = (0, 0)
@@ -280,7 +280,7 @@ class EarthObservationMDP:
 
         return weather_transition_probability
 
-    # TODO: Determine the correct reward function
+    # TODO Determine the correct reward function
     def reward_function(self, state, action):
         location, weather_status = self.get_state_factors_from_state(state)
 

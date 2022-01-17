@@ -70,7 +70,7 @@ class PartiallyAbstractMDP:
         for state in self.state_space:
             rewards[state] = {}
 
-            # TODO: Make the lookup in this for loop more efficient
+            # TODO Make the lookup in this for loop more efficient
             for action in self.action_space:
                 printer.print_loading_bar(statistics['count'], statistics['total'], 'Partially Abstract Rewards')
                 statistics['count'] += 1
@@ -82,7 +82,7 @@ class PartiallyAbstractMDP:
                 else:
                     rewards[state][action] = 0
                     for ground_state in abstract_mdp.get_ground_states([state]):
-                        # TODO: Decide whether max is totally useless now - weights seem better
+                        # TODO Decide whether max is totally useless now - weights seem better
                         rewards[state][action] += self.weights[ground_state] * ground_mdp.reward_function(ground_state, action)
                         # rewards[state][action] = max(ground_mdp.reward_function(ground_state, action), rewards[state][action])
 
