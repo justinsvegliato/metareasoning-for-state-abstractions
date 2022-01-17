@@ -1,0 +1,22 @@
+{
+    "os": "Darwin-21.2.0-x86_64-i386-64bit",
+    "python": "3.7.8",
+    "heartbeatAt": "2022-01-17T20:06:34.109284",
+    "startedAt": "2022-01-17T20:06:33.291888",
+    "docker": null,
+    "cpu_count": 8,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "metareasoning_trainer.py",
+    "codePath": "src/metareasoning_trainer.py",
+    "git": {
+        "remote": "https://github.com/justinsvegliato/policy-sketch-refine.git",
+        "commit": "b3d6abeac41624179e36c638dff38064f70ba392"
+    },
+    "email": "justin.svegliato@gmail.com",
+    "root": "/Users/justinsvegliato/Documents/Development/policy-sketch-refine",
+    "host": "Justins-MBP.hsd1.ca.comcast.net",
+    "username": "justinsvegliato",
+    "executable": "/usr/local/bin/python3"
+}
