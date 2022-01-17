@@ -1,5 +1,4 @@
 import gym
-from tqdm import tqdm
 
 from metareasoning_dqn_agent import MetareasoningDqnAgent
 
@@ -24,7 +23,7 @@ def main():
 
     cumulative_reward_list = []
 
-    for _ in tqdm(range(EPISODES)):
+    for _ in range(EPISODES):
         observation, done, cumulative_reward = ENVIRONMENT.reset(), False, 0
 
         while not done:

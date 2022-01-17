@@ -1,0 +1,22 @@
+{
+    "os": "Darwin-21.2.0-x86_64-i386-64bit",
+    "python": "3.7.8",
+    "heartbeatAt": "2022-01-17T21:30:24.327507",
+    "startedAt": "2022-01-17T21:30:22.692315",
+    "docker": null,
+    "cpu_count": 8,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "metareasoning_trainer.py",
+    "codePath": "metareasoning_trainer.py",
+    "git": {
+        "remote": "https://github.com/justinsvegliato/metareasoning-for-state-abstractions.git",
+        "commit": "6efbed3e9c486346f43988b62152a5d0fc350b08"
+    },
+    "email": "justin.svegliato@gmail.com",
+    "root": "/Users/justinsvegliato/Documents/Development/metareasoning-for-state-abstractions",
+    "host": "eecs-128-32-175-246.dhcp.berkeley.edu",
+    "username": "justinsvegliato",
+    "executable": "/usr/local/bin/python3"
+}

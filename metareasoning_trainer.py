@@ -1,5 +1,4 @@
 import wandb
-from tqdm import tqdm
 
 from metareasoning_dqn_agent import MetareasoningDqnAgent
 from metareasoning_env import MetareasoningEnv
@@ -50,7 +49,7 @@ def main():
     epsilon = START_EPSILON
 
     index = 128
-    for _ in tqdm(range(EPISODES)):
+    for _ in range(EPISODES):
         observation, done, losses, episode_length, cumulative_reward = ENVIRONMENT.reset(), False, 0, 0, 0
 
         while not done:
