@@ -46,9 +46,9 @@ class MetareasoningDqnAgent:
             action_values = self.action_value_network(torch.from_numpy(state).float())
 
         _, best_actions = torch.max(action_values, axis=0)
-        best_actions = best_actions if torch.rand(1, ).item() > epsilon else torch.randint(0, action_space_size, (1,))
+        actions = best_actions if torch.rand(1, ).item() > epsilon else torch.randint(0, action_space_size, (1, ))
 
-        return best_actions
+        return actions
 
     def get_next_action_value(self, state):
         with torch.no_grad():

@@ -1,3 +1,5 @@
+import statistics
+
 import gym
 
 from metareasoning_dqn_agent import MetareasoningDqnAgent
@@ -7,7 +9,6 @@ MODEL_PATH = "models/test-model.pth"
 SEED = 1423
 EPISODES = 100
 ENVIRONMENT = gym.make('reinforcement_learning:metareasoning-v0')
-ENVIRONMENT = gym.wrappers.Monitor(ENVIRONMENT, "records", force='True')
 
 INPUT_DIMENSION = ENVIRONMENT.observation_space.shape[0]
 HIDDEN_DIMENSION = 64
@@ -21,7 +22,7 @@ AGENT = MetareasoningDqnAgent(seed=SEED, layer_sizes=[INPUT_DIMENSION, HIDDEN_DI
 def main():
     AGENT.load_model(MODEL_PATH)
 
-    cumulative_reward_list = []
+    cumulative_reward_lists = []
 
     for _ in range(EPISODES):
         observation, done, cumulative_reward = ENVIRONMENT.reset(), False, 0
@@ -31,9 +32,9 @@ def main():
             observation, reward, done, _ = ENVIRONMENT.step(action.item())
             cumulative_reward += reward
 
-        cumulative_reward_list.append(cumulative_reward)
+        cumulative_reward_lists.append(cumulative_reward)
 
-    print("Average Reward Per Episode:", sum(cumulative_reward_list) / len(cumulative_reward_list))
+    print("Average Reward Per Episode:", statistics.mean(cumulative_reward_lists))
 
 
 if __name__ == '__main__':

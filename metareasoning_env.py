@@ -14,7 +14,7 @@ import utils
 from earth_observation_abstract_mdp import EarthObservationAbstractMDP
 from earth_observation_mdp import EarthObservationMDP
 
-SIZE = (3, 6)
+SIZE = (6, 12)
 POINTS_OF_INTEREST = 2
 VISIBILITY = None
 

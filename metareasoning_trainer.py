@@ -3,13 +3,6 @@ import wandb
 from metareasoning_dqn_agent import MetareasoningDqnAgent
 from metareasoning_env import MetareasoningEnv
 
-wandb.init(project="metareasoning", entity="justinsvegliato")
-wandb.config = {
-  "learning_rate": 1e-3,
-  "epochs": 10000,
-  "batch_size": 64
-}
-
 MODEL_PATH = "models/test-model.pth"
 
 SEED = 1423
@@ -22,12 +15,17 @@ OUTPUT_DIMENSION = ENVIRONMENT.action_space.n
 LEARNING_RATE = 1e-3
 SYNC_FREQUENCY = 5
 EXPERIENCE_BUFFER_SIZE = 256
+BATCH_SIZE = 16
 AGENT = MetareasoningDqnAgent(seed=SEED, layer_sizes=[INPUT_DIMENSION, HIDDEN_DIMENSION, OUTPUT_DIMENSION], learning_rate=LEARNING_RATE, sync_frequency=SYNC_FREQUENCY, experience_buffer_size=EXPERIENCE_BUFFER_SIZE)
 
 START_EPSILON = 1.0
 END_EPSILON = 0.05
 
+
 def main():
+    wandb.init(project="metareasoning", entity="justinsvegliato")
+    wandb.config = {"learning_rate": LEARNING_RATE, "epochs": EPISODES, "batch_size": BATCH_SIZE}
+
     losses_list, cumulative_rewards_list, episode_length_list, epsilon_list = [], [], [], []
 
     index = 0
@@ -67,10 +65,8 @@ def main():
             if index > 128:
                 index = 0
                 for _ in range(4):
-                    loss = AGENT.train(batch_size=16)
-
+                    loss = AGENT.train(batch_size=BATCH_SIZE)
                     wandb.log({"loss": loss})
-
                     losses += loss
 
         if epsilon > END_EPSILON:
