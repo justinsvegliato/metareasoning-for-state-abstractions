@@ -8,13 +8,16 @@ import numpy as np
 from gym import spaces
 
 import cplex_mdp_solver
+import earth_observation_mdp
 import policy_sketch_refine
 import printer
 import utils
 from earth_observation_abstract_mdp import EarthObservationAbstractMDP
-from earth_observation_mdp import EarthObservationMDP
+from earth_observation_mdp import VISIBILITY_FIDELITY, EarthObservationMDP
 
-SIZE = (6, 12)
+STATE_WIDTH = 6
+STATE_HEIGHT = 12
+SIZE = (STATE_WIDTH, STATE_HEIGHT)
 POINTS_OF_INTEREST = 2
 VISIBILITY = None
 
@@ -43,8 +46,23 @@ class MetareasoningEnv(gym.Env):
 
   def __init__(self, ):
     super(MetareasoningEnv, self).__init__()
-    
-    self.observation_space = spaces.Box(low=np.array([np.float32(0.0), ]), high=np.array([np.float32(1.0), ]))
+
+    # TODO: Implement features
+    # (1) All the nearest abstract states that have reward
+    # (2) Distance from the current abstract state to other abstract states that have reward
+    # (3) Measure for the current abstract state's local connectivity
+    # (4) Fixed cost for abstract states expanded in your PAMDP or the number of variables (ground/abstract variables)
+    self.observation_space = spaces.Box(
+      low=np.array([
+        np.float64(0.0), 
+        np.int64(0)
+      ]), 
+      high=np.array([
+        np.float64(1.0), 
+        np.int64((STATE_WIDTH / ABSTRACT_STATE_WIDTH) * (STATE_HEIGHT / ABSTRACT_STATE_HEIGHT) * (POINTS_OF_INTEREST ** earth_observation_mdp.VISIBILITY_FIDELITY))
+      ]), 
+      shape=(2, )
+    )
     self.action_space = spaces.Discrete(3)
 
     self.ground_mdp = None
@@ -58,12 +76,16 @@ class MetareasoningEnv(gym.Env):
     self.visited_ground_states = []
     self.solved_ground_states = []
 
+    self.expansions = 0
+
     self.steps = 0
 
   def step(self, action):    
     logging.info("Environment Step [%d]", self.steps)
 
     logging.info("-- Visited a new abstract state: [%s]", self.current_abstract_state)
+
+    self.expansions += 1
 
     logging.info("-- Executing the policy sketch refine algorithm...")
     start = time.time()
@@ -95,7 +117,7 @@ class MetareasoningEnv(gym.Env):
 
       self.steps += 1
 
-    return self.__get_observation(), self.__get_reward(), self.__get_done(), None
+    return self.__get_observation(), self.__get_reward(), self.__get_done(), {}
 
   def reset(self):
     logging.info("Environment Reset")
@@ -124,9 +146,11 @@ class MetareasoningEnv(gym.Env):
     self.visited_ground_states = []
     self.solved_ground_states = []
 
+    self.expansions = 0
+
     return self.__get_observation()
 
-  # TODO Implement policy evaluation because it will still be efficient
+  # TODO Implement policy evaluation (stochastic or determinized) because it will still be efficient
   def __get_simulated_cumulative_ground_reward(self):
     simulated_cumulative_ground_rewards = []
 
@@ -162,22 +186,22 @@ class MetareasoningEnv(gym.Env):
 
   def __get_observation(self):
     quality = self.__get_simulated_cumulative_ground_reward() / self.__get_maximum_cumulative_ground_reward() 
-    return np.array([np.float32(quality),])
+    return np.array([
+      np.float64(quality), 
+      np.int64(self.expansions)
+    ])
 
   def __get_reward(self):
     return self.__get_maximum_cumulative_ground_reward() - self.__get_simulated_cumulative_ground_reward()
 
   def __get_done(self):
-    return self.steps >= HORIZON
+    return self.steps > HORIZON
   
 
 def main():
   env = MetareasoningEnv()
-  
   print(env.reset())
-
-  for _ in range(5):
-    print(env.step(2))
+  print(env.step(2))
 
 
 if __name__ == '__main__':

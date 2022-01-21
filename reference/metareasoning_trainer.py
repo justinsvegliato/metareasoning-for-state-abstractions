@@ -1,5 +1,6 @@
-import wandb
+import logging
 
+import wandb
 from metareasoning_dqn_agent import MetareasoningDqnAgent
 from metareasoning_env import MetareasoningEnv
 
@@ -21,6 +22,8 @@ AGENT = MetareasoningDqnAgent(seed=SEED, layer_sizes=[INPUT_DIMENSION, HIDDEN_DI
 START_EPSILON = 1.0
 END_EPSILON = 0.05
 
+logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
+
 
 def main():
     wandb.init(project="metareasoning", entity="justinsvegliato")
@@ -28,8 +31,12 @@ def main():
 
     losses_list, cumulative_rewards_list, episode_length_list, epsilon_list = [], [], [], []
 
+    logging.info("Building the experience buffer...")
+
     index = 0
-    for _ in range(EXPERIENCE_BUFFER_SIZE):
+    while index <= EXPERIENCE_BUFFER_SIZE:
+        logging.info("Experience [%s]", index)
+
         observation = ENVIRONMENT.reset()
 
         done = False
@@ -44,10 +51,14 @@ def main():
             if index > EXPERIENCE_BUFFER_SIZE:
                 break
 
+    logging.info("Training the agent...")
+
     epsilon = START_EPSILON
 
     index = 128
-    for _ in range(EPISODES):
+    for episode in range(EPISODES):
+        logging.info("Episode [%s]", episode)
+        
         observation, done, losses, episode_length, cumulative_reward = ENVIRONMENT.reset(), False, 0, 0, 0
 
         while not done:

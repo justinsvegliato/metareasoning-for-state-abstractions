@@ -2,6 +2,8 @@ import sys
 
 from termcolor import colored
 
+IS_ACTIVE = False
+
 
 def print_states(mdp):
     print("States:")
@@ -83,6 +85,9 @@ def print_mdp(mdp):
 
 
 def print_earth_observation_policy(earth_observation_mdp, visited_ground_states=[], expanded_ground_states=[], ground_policy_cache={}):
+    if not IS_ACTIVE:
+        return False
+
     BORDER_SIZE = 150
     SYMBOLS = {
         0: '\u00b7',
