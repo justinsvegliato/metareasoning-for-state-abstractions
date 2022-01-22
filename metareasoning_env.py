@@ -30,7 +30,7 @@ INITIAL_GROUND_STATE = 0
 EXPAND_POINTS_OF_INTEREST = True
 GAMMA = 0.99
 
-HORIZON = 100
+HORIZON = 10
 SIMULATIONS = 100
 
 EXPANSION_STRATEGY_MAP = {
@@ -77,7 +77,6 @@ class MetareasoningEnv(gym.Env):
     self.solved_ground_states = []
 
     self.expansions = 0
-
     self.steps = 0
 
   def step(self, action):    
@@ -147,6 +146,7 @@ class MetareasoningEnv(gym.Env):
     self.solved_ground_states = []
 
     self.expansions = 0
+    self.steps = 0
 
     return self.__get_observation()
 
