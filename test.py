@@ -23,7 +23,6 @@ class WandbCallback(BaseCallback):
         self.config = config
         self.logging_directory = logging_directory
 
-    def _on_training_start(self) -> None:
         self.run = wandb.init(
             project=self.project, 
             config=self.config

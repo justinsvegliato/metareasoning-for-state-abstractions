@@ -80,7 +80,7 @@ class MetareasoningEnv(gym.Env):
     self.steps = 0
 
   def step(self, action):    
-    logging.info("Environment Step [%d]", self.steps)
+    logging.info("Environment Step [%d, %s]", self.steps, EXPANSION_STRATEGY_MAP[action])
 
     logging.info("-- Visited a new abstract state: [%s]", self.current_abstract_state)
 
