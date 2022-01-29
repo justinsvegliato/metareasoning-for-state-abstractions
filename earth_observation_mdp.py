@@ -2,6 +2,12 @@ import math
 from random import randint
 
 ACTIONS = ['STAY', 'NORTH', 'SOUTH', 'IMAGE']
+ACTION_MAP = {
+    'STAY': 0,
+    'NORTH': 1,
+    'SOUTH': 2,
+    'IMAGE': 3
+}
 
 WEATHER_GETS_WORSE_PROBABILITY = 0.1
 WEATHER_GETS_BETTER_PROBABILITY = 0.1

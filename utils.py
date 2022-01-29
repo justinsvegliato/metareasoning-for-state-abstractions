@@ -71,7 +71,8 @@ def get_successor_state(current_state, current_action, mdp):
 
     total_probability = 0
 
-    for successor_state in mdp.states():
+    successor_states = mdp.states()
+    for successor_state in successor_states:
         transition_probability = mdp.transition_function(current_state, current_action, successor_state)
 
         if transition_probability == 0:

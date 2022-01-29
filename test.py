@@ -1,8 +1,9 @@
 import numpy as np
-from stable_baselines3 import PPO
+from stable_baselines3 import DQN
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.results_plotter import X_TIMESTEPS, load_results, ts2xy
+from stable_baselines3.common.results_plotter import (X_TIMESTEPS,
+                                                      load_results, ts2xy)
 
 import wandb
 from metareasoning_env import MetareasoningEnv
@@ -13,6 +14,7 @@ CONFIG = {
     'total_timesteps': 10000
 }
 LOGGING_DIRECTORY = 'logs'
+INFO_KEYWORDS = ('action',)
 
 
 class WandbCallback(BaseCallback):
@@ -29,11 +31,26 @@ class WandbCallback(BaseCallback):
         )
 
     def _on_step(self) -> bool:
-        x, y = ts2xy(load_results(self.logging_directory), X_TIMESTEPS)
+        results = load_results(self.logging_directory)
+        x, y = ts2xy(results, X_TIMESTEPS)
 
         if len(x) > 0:
+            actions = (results.loc[:,'action'].values)[-100:]
+
+            action_frequencies = [0, 0, 0]
+            for action in actions:
+                action_frequencies[action] += 1
+
+            action_probabilities = [action_frequency / len(actions) for action_frequency in action_frequencies]
+
             mean_reward = np.mean(y[-100:])
-            wandb.log({'train/reward': mean_reward})
+
+            wandb.log({
+                'Training/Reward': mean_reward,
+                'Training/Naive': action_probabilities[0],
+                'Training/Greedy': action_probabilities[1],
+                'Training/Proactive': action_probabilities[2],
+            })
 
         return True
 
@@ -42,9 +59,9 @@ class WandbCallback(BaseCallback):
 
 
 def main():
-    env = Monitor(MetareasoningEnv(), LOGGING_DIRECTORY)
+    env = Monitor(MetareasoningEnv(), LOGGING_DIRECTORY, info_keywords=INFO_KEYWORDS)
     
-    model = PPO(CONFIG['policy_type'], env)
+    model = DQN(CONFIG['policy_type'], env)
     model.learn(
         total_timesteps=CONFIG['total_timesteps'],
         callback=WandbCallback(PROJECT, CONFIG, LOGGING_DIRECTORY)

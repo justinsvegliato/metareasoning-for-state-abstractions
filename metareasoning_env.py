@@ -13,11 +13,11 @@ import policy_sketch_refine
 import printer
 import utils
 from earth_observation_abstract_mdp import EarthObservationAbstractMDP
-from earth_observation_mdp import VISIBILITY_FIDELITY, EarthObservationMDP
+from earth_observation_mdp import ACTION_MAP, EarthObservationMDP
 
-STATE_WIDTH = 6
-STATE_HEIGHT = 12
-SIZE = (STATE_WIDTH, STATE_HEIGHT)
+STATE_WIDTH = 12
+STATE_HEIGHT = 6
+SIZE = (STATE_HEIGHT, STATE_WIDTH)
 POINTS_OF_INTEREST = 2
 VISIBILITY = None
 
@@ -30,8 +30,8 @@ INITIAL_GROUND_STATE = 0
 EXPAND_POINTS_OF_INTEREST = True
 GAMMA = 0.99
 
-HORIZON = 10
-SIMULATIONS = 100
+TRAVERSES = 2
+HORIZON = TRAVERSES * STATE_WIDTH
 
 EXPANSION_STRATEGY_MAP = {
   0: 'NAIVE',
@@ -42,6 +42,8 @@ EXPANSION_STRATEGY_MAP = {
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
 
+# TODO: Build the ground MDP and memory MDP once
+# TODO: Vectorize as many operations as possible
 class MetareasoningEnv(gym.Env):
 
   def __init__(self, ):
@@ -66,6 +68,7 @@ class MetareasoningEnv(gym.Env):
     self.action_space = spaces.Discrete(3)
 
     self.ground_mdp = None
+    self.ground_memory_mdp = None
     self.abstract_mdp = None
 
     self.current_ground_state = None
@@ -76,15 +79,15 @@ class MetareasoningEnv(gym.Env):
     self.visited_ground_states = []
     self.solved_ground_states = []
 
-    self.expansions = 0
-    self.steps = 0
+    self.previous_quality = 0
+    self.current_quality = 0
+    self.current_expansions = 0
+    self.current_step = 0
 
   def step(self, action):    
-    logging.info("Environment Step [%d, %s]", self.steps, EXPANSION_STRATEGY_MAP[action])
+    logging.info("Environment Step [%d, %s]", self.current_step, EXPANSION_STRATEGY_MAP[action])
 
     logging.info("-- Visited a new abstract state: [%s]", self.current_abstract_state)
-
-    self.expansions += 1
 
     logging.info("-- Executing the policy sketch refine algorithm...")
     start = time.time()
@@ -102,8 +105,12 @@ class MetareasoningEnv(gym.Env):
       self.ground_policy_cache[ground_state] = ground_policy[ground_state]
     logging.info("-- Updated the ground policy cache for the new abstract state: [%s]", self.current_abstract_state)
 
+    self.previous_quality = self.current_quality
+    self.current_quality = self._get_current_quality()
+    self.current_expansions += 1
+
     logging.info("Environment Simulator")
-    while self.current_ground_state in self.solved_ground_states and self.steps <= HORIZON:
+    while self.current_ground_state in self.solved_ground_states and self.current_step <= HORIZON:
       self.visited_ground_states.append(self.current_ground_state)
 
       self.current_action = self.ground_policy_cache[self.current_ground_state] 
@@ -114,9 +121,9 @@ class MetareasoningEnv(gym.Env):
       self.current_ground_state = utils.get_successor_state(self.current_ground_state, self.current_action, self.ground_mdp)
       self.current_abstract_state = self.abstract_mdp.get_abstract_state(self.current_ground_state)
 
-      self.steps += 1
+      self.current_step += 1
 
-    return self.__get_observation(), self.__get_reward(), self.__get_done(), {}
+    return self.__get_observation(), self.__get_reward(), self.__get_done(), self.__get_info(action)
 
   def reset(self):
     logging.info("Environment Reset")
@@ -124,6 +131,10 @@ class MetareasoningEnv(gym.Env):
     start = time.time()
     self.ground_mdp = EarthObservationMDP(SIZE, POINTS_OF_INTEREST, VISIBILITY)
     logging.info("-- Built the earth observation MDP: [states=%d, actions=%d, time=%f]", len(self.ground_mdp.states()), len(self.ground_mdp.actions()), time.time() - start)
+
+    start = time.time()
+    self.ground_memory_mdp = cplex_mdp_solver.MemoryMDP(self.ground_mdp)
+    logging.info("-- Built the earth observation memory MDP: [states=%d, actions=%d, time=%f]", self.ground_memory_mdp.n_states, self.ground_memory_mdp.n_actions, time.time() - start)
 
     start = time.time()
     self.abstract_mdp = EarthObservationAbstractMDP(self.ground_mdp, ABSTRACTION, ABSTRACT_STATE_WIDTH, ABSTRACT_STATE_HEIGHT)
@@ -145,62 +156,58 @@ class MetareasoningEnv(gym.Env):
     self.visited_ground_states = []
     self.solved_ground_states = []
 
-    self.expansions = 0
-    self.steps = 0
+    self.previous_quality = None
+    self.current_quality = self._get_current_quality()
+    self.current_expansions = 0
+    self.current_step = 0
 
     return self.__get_observation()
 
-  # TODO Implement policy evaluation (stochastic or determinized) because it will still be efficient
-  def __get_simulated_cumulative_ground_reward(self):
-    simulated_cumulative_ground_rewards = []
+  def _get_current_quality(self):
+    states = self.ground_memory_mdp.states
+    actions = self.ground_memory_mdp.actions
+    rewards = self.ground_memory_mdp.rewards
+    transition_probabilities = self.ground_memory_mdp.transition_probabilities
 
-    for _ in range(SIMULATIONS):
-      simulated_cumulative_ground_reward = 0
+    values = np.zeros((len(states))).astype('float32').reshape(-1, 1)
+    action_values = np.zeros((len(states), len(actions))).astype('float32')
 
-      simulated_ground_state = INITIAL_GROUND_STATE
-      for _ in range(HORIZON):
-          simulated_action = self.ground_policy_cache[simulated_ground_state]
-          simulated_cumulative_ground_reward += self.ground_mdp.reward_function(simulated_ground_state, simulated_action)
-          simulated_ground_state = utils.get_successor_state(simulated_ground_state, simulated_action, self.ground_mdp)
-        
-      simulated_cumulative_ground_rewards.append(simulated_cumulative_ground_reward)
+    dimension_array = np.ones((1, transition_probabilities.ndim), int).ravel()
+    dimension_array[2] = -1
 
-    return statistics.mean(simulated_cumulative_ground_rewards)
+    step = 0
 
-  def __get_maximum_ground_reward(self):
-    states = self.ground_mdp.states()
-    actions = self.ground_mdp.actions()
+    policy_indexes = [ACTION_MAP[self.ground_policy_cache[state]] for state in states]
 
-    maximum_immediate_reward = float('-inf')
-    for state in states:
-        for action in actions:
-            immediate_reward = self.ground_mdp.reward_function(state, action)
-            maximum_immediate_reward = max(maximum_immediate_reward, immediate_reward)
+    while step < HORIZON:
+      action_values = rewards + GAMMA * np.sum(transition_probabilities * values.reshape(dimension_array), axis=2)
+      values = np.choose(policy_indexes, action_values.T)
+      step += 1
 
-    return maximum_immediate_reward
+    values = {state: values[state] for state in states}
 
-  def __get_maximum_cumulative_ground_reward(self):
-    maximum_ground_reward = self.__get_maximum_ground_reward()
-    maximum_photo_count = (HORIZON / SIZE[0]) * POINTS_OF_INTEREST
-    return maximum_ground_reward * maximum_photo_count
+    return values[INITIAL_GROUND_STATE]
 
   def __get_observation(self):
-    quality = self.__get_simulated_cumulative_ground_reward() / self.__get_maximum_cumulative_ground_reward() 
     return np.array([
-      np.float64(quality), 
-      np.int64(self.expansions)
+      np.float64(self.current_quality), 
+      np.int64(self.current_expansions)
     ])
 
   def __get_reward(self):
-    return self.__get_maximum_cumulative_ground_reward() - self.__get_simulated_cumulative_ground_reward()
+    return self.current_quality - self.previous_quality
 
   def __get_done(self):
-    return self.steps > HORIZON
-  
+    return self.current_step > HORIZON
+
+  def __get_info(self, action):
+    return {'action': action}
+
 
 def main():
   env = MetareasoningEnv()
   print(env.reset())
+  print(env.step(2))
   print(env.step(2))
 
 
