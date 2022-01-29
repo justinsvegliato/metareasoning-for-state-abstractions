@@ -113,13 +113,13 @@ def main():
     ground_solution = cplex_mdp_solver.solve(mdp, GAMMA, constant_state_values={}, relax_infeasible=False)
     printer.print_earth_observation_policy(mdp, [INITIAL_GROUND_STATE], [], ground_solution['policy'])
 
-    # print("--------------------------------------------------")
+    print("--------------------------------------------------")
 
-    # start = time.time()
-    # logging.info("Policy Evaluation")
-    # values = policy_evaluation(mdp, ground_solution['policy'])
-    # print("Values:", values[INITIAL_GROUND_STATE])
-    # print("Stopwatch:", time.time() - start)
+    start = time.time()
+    logging.info("Policy Evaluation")
+    values = policy_evaluation(mdp, ground_solution['policy'])
+    print("Values:", values[INITIAL_GROUND_STATE])
+    print("Stopwatch:", time.time() - start)
 
     print("--------------------------------------------------")
 

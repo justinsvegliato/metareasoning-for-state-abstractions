@@ -56,11 +56,11 @@ class MetareasoningEnv(gym.Env):
     # (4) Fixed cost for abstract states expanded in your PAMDP or the number of variables (ground/abstract variables)
     self.observation_space = spaces.Box(
       low=np.array([
-        np.float64(0.0), 
+        np.float64(0.0),
         np.int64(0)
       ]), 
       high=np.array([
-        np.float64(1.0), 
+        np.float64(1.0),
         np.int64((STATE_WIDTH / ABSTRACT_STATE_WIDTH) * (STATE_HEIGHT / ABSTRACT_STATE_HEIGHT) * (POINTS_OF_INTEREST ** earth_observation_mdp.VISIBILITY_FIDELITY))
       ]), 
       shape=(2, )
