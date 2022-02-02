@@ -2,12 +2,6 @@ import math
 from random import randint
 
 ACTIONS = ['STAY', 'NORTH', 'SOUTH', 'IMAGE']
-ACTION_MAP = {
-    'STAY': 0,
-    'NORTH': 1,
-    'SOUTH': 2,
-    'IMAGE': 3
-}
 
 WEATHER_GETS_WORSE_PROBABILITY = 0.1
 WEATHER_GETS_BETTER_PROBABILITY = 0.1
@@ -32,7 +26,6 @@ class EarthObservationMDP:
         self.num_cols = size[1]
 
         self.state_registry = {}
-
         self.state_space = None
 
         # Set the points of interest in one of three different ways
@@ -134,7 +127,7 @@ class EarthObservationMDP:
     def get_successors(self, state, action):
         successors = []
 
-        # TODO do the weather part for even more speedup / accuracy
+        # TODO Do the weather part for even more speedup/accuracy
         location, _ = self.get_state_factors_from_state(state)
 
         successor_location = (0, 0)

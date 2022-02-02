@@ -8,7 +8,7 @@ logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelna
 
 
 def sketch(abstract_mdp, gamma):
-    return cplex_mdp_solver.solve(abstract_mdp, gamma, constant_state_values={}, relax_infeasible=False)
+    return cplex_mdp_solver.solve(abstract_mdp, gamma)
 
 
 def refine(ground_mdp, ground_state, abstract_mdp, abstract_state, sketched_solution, expand_points_of_interest, expansion_strategy, gamma):
@@ -61,37 +61,17 @@ def refine(ground_mdp, ground_state, abstract_mdp, abstract_state, sketched_solu
     partially_abstract_mdp = PartiallyAbstractMDP(ground_mdp, abstract_mdp, grounding_abstract_states)
     logging.info("---- Built the PAMDP: [states=%d, actions=%d, time=%f]", len(partially_abstract_mdp.states()), len(partially_abstract_mdp.actions()), time.time() - start)
 
-    abstract_state_set = set(abstract_mdp.states())
-    constant_abstract_state_set = abstract_state_set - {abstract_state} - point_of_interest_abstract_state_set
-    variable_abstract_state_set = abstract_state_set - constant_abstract_state_set
-    logging.info('---- Initialized state information: [constants=%d, variables=%d]', len(constant_abstract_state_set), len(variable_abstract_state_set))
-
     start = time.time()
-    refined_solution = cplex_mdp_solver.solve(partially_abstract_mdp, gamma, constant_state_values={}, relax_infeasible=False)
-    logging.info("---- Ran the CPLEX solver: [time=%f]", time.time() - start)
+    refined_solution = cplex_mdp_solver.solve(partially_abstract_mdp, gamma)
 
     if refined_solution:
-        logging.info("---- Found a feasible solution to the PAMDP")
-        return refined_solution
+        logging.info("---- Ran the CPLEX solver: [time=%f]", time.time() - start)
     else:
-        logging.error("---- Failed to find a feasible solution to the PAMDP")
-        refined_solution = cplex_mdp_solver.solve(partially_abstract_mdp, gamma, constant_state_values={}, relax_infeasible=True)
-        if refined_solution:        
-            logging.info('---- Found a feasible solution to the PAMDP after relaxing some constraints')
-            return refined_solution
-        else:
-            logging.info('---- Could not find a feasible solution to the PAMDP')
-            return refined_solution
+        logging.info("---- Failed to run the CPLEX solver: [time=%f]", time.time() - start)
+
+    return refined_solution
 
 def solve(ground_mdp, ground_state, abstract_mdp, abstract_state, expand_points_of_interest, expansion_level, gamma):
-    logging.info("---- Starting the sketch phase...")
-    start = time.time()
     sketched_solution = sketch(abstract_mdp, gamma)
-    logging.info("---- Finished the sketch phase: [time=%f]", time.time() - start)
-
-    logging.info("---- Starting the refine phase...")
-    start = time.time()
     refined_solution = refine(ground_mdp, ground_state, abstract_mdp, abstract_state, sketched_solution, expand_points_of_interest, expansion_level, gamma)
-    logging.info("---- Finished the refine phase: [time=%f]", time.time() - start)
-
     return refined_solution

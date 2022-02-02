@@ -17,25 +17,25 @@ def task(abstract_mdp, ground_mdp, state_space, ground_state_set, abstract_state
             for successor_state in pamdp.state_space:
                 probability = 0
 
-                # Both s and s' are ground states
+                # If both s and s' are ground states
                 if state in ground_state_set and successor_state in ground_state_set:
                     probability = ground_mdp.transition_function(state, action, successor_state)
 
-                # s is a ground state, s' is an abstract state
+                # If s is a ground state, s' is an abstract state
                 elif state in ground_state_set and successor_state in abstract_state_set:
-                    # If transition probability in abstract mdp is zero, then it is also zero for any underlying ground states!
-                    if abstract_mdp.transition_function(abstract_mdp.get_abstract_state(state), action, successor_state) > 0:       # comment this and the identical line below for benchmarking
+                    # If the transition probability in the abstract MDP is zero, then it is also zero for any underlying ground states!
+                    if abstract_mdp.transition_function(abstract_mdp.get_abstract_state(state), action, successor_state) > 0:
                         for ground_successor_state in abstract_mdp.get_ground_states([successor_state]):
                             probability += ground_mdp.transition_function(state, action, ground_successor_state)
 
-                # s is an abstract state and s' is a ground state
+                # If s is an abstract state and s' is a ground state
                 elif state in abstract_state_set and successor_state in ground_state_set:
                     # If transition probability in abstract mdp is zero, then it is also zero for any underlying ground states!
                     if abstract_mdp.transition_function(state, action, abstract_mdp.get_abstract_state(successor_state)) > 0:
                         for ground_state in abstract_mdp.get_ground_states([state]):
                             probability += pamdp.weights[ground_state] * ground_mdp.transition_function(ground_state, action, successor_state)
 
-                # Both s and s' are abstract states
+                # If both s and s' are abstract states
                 else:
                     probability = abstract_mdp.transition_function(state, action, successor_state)
 

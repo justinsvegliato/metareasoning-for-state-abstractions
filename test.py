@@ -2,8 +2,7 @@ import numpy as np
 from stable_baselines3 import DQN
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.results_plotter import (X_TIMESTEPS,
-                                                      load_results, ts2xy)
+from stable_baselines3.common.results_plotter import (X_TIMESTEPS, load_results, ts2xy)
 
 import wandb
 from metareasoning_env import MetareasoningEnv
@@ -37,7 +36,7 @@ class WandbCallback(BaseCallback):
         if len(x) > 0:
             actions = (results.loc[:,'action'].values)[-100:]
 
-            action_frequencies = [0, 0, 0]
+            action_frequencies = [0, 0]
             for action in actions:
                 action_frequencies[action] += 1
 
@@ -48,8 +47,7 @@ class WandbCallback(BaseCallback):
             wandb.log({
                 'Training/Reward': mean_reward,
                 'Training/Naive': action_probabilities[0],
-                'Training/Greedy': action_probabilities[1],
-                'Training/Proactive': action_probabilities[2],
+                'Training/Proactive': action_probabilities[1]
             })
 
         return True

@@ -4,6 +4,20 @@ from termcolor import colored
 
 IS_ACTIVE = True
 
+SYMBOLS = {
+    0: '\u00b7',
+    1: '\u205a',
+    2: '\u22ee',
+    3: '\u229e',
+    'STAY': '\u2205',
+    'NORTH': '\u2191',
+    'SOUTH': '\u2193',
+    'IMAGE': '\u25A1'
+}
+
+BORDER_CHARACTER = "="
+BORDER_SIZE = 150
+
 
 def print_states(mdp):
     print("States:")
@@ -88,19 +102,7 @@ def print_earth_observation_policy(earth_observation_mdp, visited_ground_states=
     if not IS_ACTIVE:
         return False
 
-    BORDER_SIZE = 150
-    SYMBOLS = {
-        0: '\u00b7',
-        1: '\u205a',
-        2: '\u22ee',
-        3: '\u229e',
-        'STAY': '\u2205',
-        'NORTH': '\u2191',
-        'SOUTH': '\u2193',
-        'IMAGE': '\u25A1'
-    }
-
-    print("=" * BORDER_SIZE)
+    print_border()
 
     height = earth_observation_mdp.height()
     width = earth_observation_mdp.width()
@@ -139,7 +141,7 @@ def print_earth_observation_policy(earth_observation_mdp, visited_ground_states=
 
         print(f"{text}")
 
-    print("=" * BORDER_SIZE)
+    print_border()
 
 
 def print_loading_bar(count, total, label):
@@ -151,3 +153,11 @@ def print_loading_bar(count, total, label):
 
     sys.stdout.write('%s: [%s] %s%s %s\r' % (label, loading_bar, percent, '%', ''))
     sys.stdout.flush()
+
+
+def print_border():
+    print(BORDER_CHARACTER * BORDER_SIZE)
+
+
+def padder(header, border_size):
+    return header + " " + BORDER_CHARACTER * (border_size - len(header) - 1)

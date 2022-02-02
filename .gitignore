@@ -3,4 +3,6 @@
 *.lp
 *.pyc
 *.log
+*.csv
 wandb
+logs
