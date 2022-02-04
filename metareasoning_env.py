@@ -61,11 +61,11 @@ class MetareasoningEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=np.array([
                 np.float32(0.0),
-                np.int32(0)
+                np.float32(0)
             ]),
             high=np.array([
                 np.float32(1.0),
-                np.int32((STATE_WIDTH / ABSTRACT_STATE_WIDTH) * (STATE_HEIGHT / ABSTRACT_STATE_HEIGHT) * (POINTS_OF_INTEREST ** earth_observation_mdp.VISIBILITY_FIDELITY))
+                np.float32((STATE_WIDTH / ABSTRACT_STATE_WIDTH) * (STATE_HEIGHT / ABSTRACT_STATE_HEIGHT) * (POINTS_OF_INTEREST ** earth_observation_mdp.VISIBILITY_FIDELITY))
             ]),
             shape=(2, )
         )
@@ -89,7 +89,7 @@ class MetareasoningEnv(gym.Env):
         self.current_step = None
 
     def step(self, action):
-        logging.info("Environment Step [%d, %s, %s]", self.current_step, EXPANSION_STRATEGY_MAP[action], self.current_abstract_state)
+        logging.info("ENVIRONMENT STEP [%d, %s, %s]", self.current_step, EXPANSION_STRATEGY_MAP[action], self.current_abstract_state)
 
         logging.info("-- Executing the policy sketch refine algorithm...")
         solution = policy_sketch_refine.solve(self.ground_mdp, self.current_ground_state, self.abstract_mdp, self.current_abstract_state, EXPANSION_STRATEGY_MAP[action], GAMMA)
@@ -108,8 +108,15 @@ class MetareasoningEnv(gym.Env):
         self.current_quality = self._get_current_quality()
         self.current_expansions += 1
 
-        logging.info("Simulator")
-        while self.current_ground_state in self.solved_ground_states and self.current_step < HORIZON:
+        logging.info("SIMULATION")
+
+        if self.current_ground_state not in self.solved_ground_states:
+            logging.info(">>>> Encountered a ground state not in the solved ground states")
+
+        if self.__get_done():
+            logging.info(">>>> Encountered a step greater than the horizon")
+
+        while self.current_ground_state in self.solved_ground_states and not self.__get_done():
             self.visited_ground_states.append(self.current_ground_state)
 
             self.current_action = self.ground_policy_cache[self.current_ground_state]
@@ -125,7 +132,7 @@ class MetareasoningEnv(gym.Env):
         return self.__get_observation(), self.__get_reward(), self.__get_done(), self.__get_info(action)
 
     def reset(self):
-        logging.info("Environment Reset")
+        logging.info("ENVIRONMENT RESET")
 
         self.ground_mdp = EarthObservationMDP(SIZE, POINTS_OF_INTEREST)
         logging.info("-- Built the earth observation MDP: [states=%d, actions=%d]", len(self.ground_mdp.states()), len(self.ground_mdp.actions()))
@@ -173,13 +180,10 @@ class MetareasoningEnv(gym.Env):
 
         step = 0
 
-        action_sequence = [ACTION_MAP[self.ground_policy_cache[state]]
-                           for state in states]
+        action_sequence = [ACTION_MAP[self.ground_policy_cache[state]] for state in states]
 
         while step < HORIZON:
-            action_values = rewards + GAMMA * \
-                np.sum(transition_probabilities *
-                       values.reshape(dimension_array), axis=2)
+            action_values = rewards + GAMMA * np.sum(transition_probabilities * values.reshape(dimension_array), axis=2)
             values = np.choose(action_sequence, action_values.T)
             step += 1
 
@@ -190,7 +194,7 @@ class MetareasoningEnv(gym.Env):
     def __get_observation(self):
         return np.array([
             np.float32(self.current_quality),
-            np.int32(self.current_expansions)
+            np.float32(self.current_expansions)
         ])
 
     def __get_reward(self):
@@ -208,6 +212,9 @@ def main():
 
     env = MetareasoningEnv()
     env.reset()
+    env.step(1)
+    env.step(1)
+    env.step(1)
     env.step(1)
 
 

@@ -67,7 +67,7 @@ def refine(ground_mdp, ground_state, abstract_mdp, abstract_state, sketched_solu
     if expansion_strategy == 'PROACTIVE':
         point_of_interest_abstract_state_set.update(get_proactive_point_of_interest_abstract_states(ground_mdp, abstract_mdp, current_location, current_weather_status))
 
-    logging.info("---- Expanding the point of interest abstract states: [abstract_states=%s]", point_of_interest_abstract_state_set)
+    logging.info("---- Expanded the abstract states: %s", point_of_interest_abstract_state_set)
 
     partially_abstract_mdp = PartiallyAbstractMDP(ground_mdp, abstract_mdp, list(point_of_interest_abstract_state_set))
     logging.info("---- Built the PAMDP: [states=%d, actions=%d]", len(partially_abstract_mdp.states()), len(partially_abstract_mdp.actions()))
