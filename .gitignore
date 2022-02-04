@@ -4,3 +4,5 @@
 *.pyc
 *.log
 *.csv
+wandb/*
+logs/*
