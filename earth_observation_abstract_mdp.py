@@ -12,7 +12,7 @@ ABSTRACTION = {
 
 GS_SAMPLES = None 
 GSS_SAMPLES = None
-NUM_PROCESSES = 8
+NUM_PROCESSES = 16
 
 
 def task(mdp, state_space, abstract_mdp):
