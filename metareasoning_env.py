@@ -5,10 +5,8 @@ import random
 import gym
 import numpy as np
 from gym import spaces
-import math
 
 import cplex_mdp_solver
-import earth_observation_mdp
 import policy_sketch_refine
 import printer
 import utils
@@ -58,26 +56,24 @@ class MetareasoningEnv(gym.Env):
         # (1) All the nearest abstract states that have reward
         # (3) Measure for the current abstract state's local connectivity
         # (4) Fixed cost for abstract states expanded in your PAMDP or the number of variables (ground/abstract variables)
+        # (5) Have we seen this weather pattern?
 
         # Features
         # (1) Quality
-        # (2) Number of expansions
         # (3) Percentage of abstract states expanded
         # (4) Distance from the current ground state to the nearest point of interest ground state
         self.observation_space = spaces.Box(
             low=np.array([
                 np.float32(-np.Infinity),
                 np.float32(0.0),
-                np.float32(0.0),
                 np.float32(0.0)
             ]),
             high=np.array([
                 np.float32(np.Infinity),
-                np.float32(np.Infinity),
                 np.float32(1.0),
-                np.float32(np.Infinity)
+                np.float32(STATE_WIDTH)
             ]),
-            shape=(4, )
+            shape=(3, )
         )
         self.action_space = spaces.Discrete(2)
 
@@ -95,7 +91,6 @@ class MetareasoningEnv(gym.Env):
 
         self.previous_quality = None
         self.current_quality = None
-        self.current_expansions = None
         self.current_expansion_ratio = None
         self.current_reward_distance = None
         self.current_step = None
@@ -232,12 +227,13 @@ class MetareasoningEnv(gym.Env):
     def __get_observation(self):
         return np.array([
             np.float32(self.current_quality),
-            np.float32(self.current_expansions),
             np.float32(self.current_expansion_ratio),
             np.float32(self.current_reward_distance)
         ])
 
     def __get_reward(self):
+        # return 100 * max((self.current_quality - self.previous_quality), 0)
+        # return 100 * (self.current_quality - self.previous_quality)
         return self.current_quality - self.previous_quality
 
     def __get_done(self):
@@ -251,11 +247,16 @@ def main():
     random.seed(5)
 
     env = MetareasoningEnv()
-    print(env.reset())
-    print(env.step(1))
-    print(env.step(1))
-    print(env.step(1))
-    print(env.step(1))
+
+    observation = env.reset()
+    print("Observation:", observation)
+
+    done = False
+    while not done:
+        observation, reward, done, _ = env.step(1)
+        print("Observation:", observation)
+        print("Reward:", reward)
+        print("Done:", done)
 
 
 if __name__ == '__main__':
