@@ -6,10 +6,11 @@ from partially_abstract_mdp import PartiallyAbstractMDP
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
 
+# TODO: Move the magic number out of this function
 def get_greedy_point_of_interest_abstract_states(ground_mdp, abstract_mdp, current_location, current_weather_status):
     point_of_interest_abstract_states = set()
 
-    for point_of_interest_location in current_weather_status:                
+    for point_of_interest_location in current_weather_status:
         vertical_distance = abs(current_location[0] - point_of_interest_location[0])
         horizontal_displacement = point_of_interest_location[1] - current_location[1]
         horizontal_distance = abs(horizontal_displacement) if horizontal_displacement >= 0 else ground_mdp.width() - abs(horizontal_displacement)

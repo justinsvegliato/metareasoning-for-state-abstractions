@@ -154,7 +154,7 @@ def task(mdp, state_space, abstract_mdp):
 
 class EarthObservationAbstractMDP:
     # TODO Test and polish this function
-    def compute_abstract_states(self, mdp):
+    def __compute_abstract_states(self, mdp):
         abstract_states = {}
 
         num_points_of_interest = mdp.get_num_point_of_interests()
@@ -284,9 +284,6 @@ class EarthObservationAbstractMDP:
         if not self.abstract_state_width > 0 or not self.abstract_state_height > 0:
             raise ValueError(f"Invalid parameters provided: abstract_state_height and abstract_state_width must be greater than 0")
 
-        self.abstract_state_width = abstract_state_width
-        self.abstract_state_height = abstract_state_height
-
         self.abstract_mdp_width = math.ceil(mdp.width() / self.abstract_state_width)
         self.abstract_mdp_height = math.ceil(mdp.height() / self.abstract_state_height)
 
@@ -294,7 +291,7 @@ class EarthObservationAbstractMDP:
 
         # NOTE You can use the basic transition probability with either abstract state space representation. 
         # However, you must use the regular (includes weather) abstraction when using the regular transition function.
-        self.abstract_states = self.compute_abstract_states(mdp)
+        self.abstract_states = self.__compute_abstract_states(mdp)
         self.abstract_actions = mdp.actions()
         self.abstract_rewards = self.__compute_abstract_rewards(mdp)
         self.abstract_transition_probabilities = self.__compute_abstract_transition_probabilities(mdp)

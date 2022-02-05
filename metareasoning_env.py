@@ -5,6 +5,7 @@ import random
 import gym
 import numpy as np
 from gym import spaces
+import math
 
 import cplex_mdp_solver
 import earth_observation_mdp
@@ -55,19 +56,28 @@ class MetareasoningEnv(gym.Env):
 
         # TODO Implement features
         # (1) All the nearest abstract states that have reward
-        # (2) Distance from the current abstract state to other abstract states that have reward
         # (3) Measure for the current abstract state's local connectivity
         # (4) Fixed cost for abstract states expanded in your PAMDP or the number of variables (ground/abstract variables)
+
+        # Features
+        # (1) Quality
+        # (2) Number of expansions
+        # (3) Percentage of abstract states expanded
+        # (4) Distance from the current ground state to the nearest point of interest ground state
         self.observation_space = spaces.Box(
             low=np.array([
+                np.float32(-np.Infinity),
                 np.float32(0.0),
-                np.float32(0)
+                np.float32(0.0),
+                np.float32(0.0)
             ]),
             high=np.array([
+                np.float32(np.Infinity),
+                np.float32(np.Infinity),
                 np.float32(1.0),
-                np.float32((STATE_WIDTH / ABSTRACT_STATE_WIDTH) * (STATE_HEIGHT / ABSTRACT_STATE_HEIGHT) * (POINTS_OF_INTEREST ** earth_observation_mdp.VISIBILITY_FIDELITY))
+                np.float32(np.Infinity)
             ]),
-            shape=(2, )
+            shape=(4, )
         )
         self.action_space = spaces.Discrete(2)
 
@@ -86,6 +96,8 @@ class MetareasoningEnv(gym.Env):
         self.previous_quality = None
         self.current_quality = None
         self.current_expansions = None
+        self.current_expansion_ratio = None
+        self.current_reward_distance = None
         self.current_step = None
 
     def step(self, action):
@@ -103,10 +115,6 @@ class MetareasoningEnv(gym.Env):
         for ground_state in ground_states:
             self.ground_policy_cache[ground_state] = ground_policy[ground_state]
         logging.info("-- Updated the ground policy cache for the new abstract state: [%s]", self.current_abstract_state)
-
-        self.previous_quality = self.current_quality
-        self.current_quality = self._get_current_quality()
-        self.current_expansions += 1
 
         logging.info("SIMULATION")
 
@@ -128,6 +136,12 @@ class MetareasoningEnv(gym.Env):
             self.current_abstract_state = self.abstract_mdp.get_abstract_state(self.current_ground_state)
 
             self.current_step += 1
+
+        self.previous_quality = self.current_quality
+        self.current_quality = self.__get_current_quality()
+        self.current_expansions += 1
+        self.current_expansion_ratio = self.__get_current_expansion_ratio()
+        self.current_reward_distance = self.__get_current_reward_distance()
 
         return self.__get_observation(), self.__get_reward(), self.__get_done(), self.__get_info(action)
 
@@ -159,14 +173,20 @@ class MetareasoningEnv(gym.Env):
         self.current_abstract_state = self.abstract_mdp.get_abstract_state(self.current_ground_state)
         self.current_action = self.ground_policy_cache[self.current_ground_state]
 
-        self.previous_quality = None
-        self.current_quality = self._get_current_quality()
+        self.previous_quality = 0
+        self.current_quality = self.__get_current_quality()
         self.current_expansions = 0
+        self.current_expansion_ratio = self.__get_current_expansion_ratio()
+        self.current_reward_distance = self.__get_current_reward_distance()
         self.current_step = 0
+
+        logging.info("SIMULATION")
+        logging.info(">>>> Ground State: [%s] | Abstract State: [%s] | Action: [%s]", self.current_ground_state, self.current_abstract_state, self.current_action)
+        printer.print_earth_observation_policy(self.ground_mdp, visited_ground_states=[self.current_ground_state], expanded_ground_states=[self.current_ground_state], ground_policy_cache=self.ground_policy_cache)
 
         return self.__get_observation()
 
-    def _get_current_quality(self):
+    def __get_current_quality(self):
         states = self.ground_memory_mdp.states
         actions = self.ground_memory_mdp.actions
         rewards = self.ground_memory_mdp.rewards
@@ -191,10 +211,30 @@ class MetareasoningEnv(gym.Env):
 
         return values[INITIAL_GROUND_STATE]
 
+    def __get_current_expansion_ratio(self):
+        return self.current_expansions / len(self.abstract_mdp.states())
+
+    def __get_current_reward_distance(self):
+        current_location, current_weather_status = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
+
+        current_reward_distance = float('inf')
+        
+        for point_of_interest_location in current_weather_status:
+            vertical_distance = abs(current_location[0] - point_of_interest_location[0])
+            horizontal_displacement = point_of_interest_location[1] - current_location[1]
+            horizontal_distance = abs(horizontal_displacement) if horizontal_displacement >= 0 else self.ground_mdp.width() - abs(horizontal_displacement)
+            manhattan_distance = vertical_distance + horizontal_distance
+
+            current_reward_distance = min(current_reward_distance, manhattan_distance)
+
+        return current_reward_distance
+
     def __get_observation(self):
         return np.array([
             np.float32(self.current_quality),
-            np.float32(self.current_expansions)
+            np.float32(self.current_expansions),
+            np.float32(self.current_expansion_ratio),
+            np.float32(self.current_reward_distance)
         ])
 
     def __get_reward(self):
@@ -211,11 +251,11 @@ def main():
     random.seed(5)
 
     env = MetareasoningEnv()
-    env.reset()
-    env.step(1)
-    env.step(1)
-    env.step(1)
-    env.step(1)
+    print(env.reset())
+    print(env.step(1))
+    print(env.step(1))
+    print(env.step(1))
+    print(env.step(1))
 
 
 if __name__ == '__main__':
