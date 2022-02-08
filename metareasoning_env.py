@@ -47,22 +47,19 @@ logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelna
 
 # TODO Build the ground MDP and memory MDP once
 # TODO Vectorize as many operations as possible
+# TODO Check to see if the actions are working properly
 class MetareasoningEnv(gym.Env):
 
     def __init__(self, ):
         super(MetareasoningEnv, self).__init__()
 
-        # TODO Implement features
-        # (1) All the nearest abstract states that have reward
-        # (3) Measure for the current abstract state's local connectivity
-        # (4) Fixed cost for abstract states expanded in your PAMDP or the number of variables (ground/abstract variables)
-        # (5) Have we seen this weather pattern?
-
-        # Features
-        # (1) Quality
-        # (3) Percentage of abstract states expanded
-        # (4) Distance from the current ground state to the nearest point of interest ground state
+        # TODO Implement a feature that represents all of the nearest abstract states with reward
+        # TODO Implement a feature that measures the current abstract state's local connectivity
+        # TODO Implement a feature that indicates whether we have we seen this weather pattern already
         self.observation_space = spaces.Box(
+            # (1) Feature 1: The difference between the value of the current policy and the value of the previous policy
+            # (2) Feature 2: The percentage of abstract states that have been expanded
+            # (3) Feature 3: The distance from the current ground state to the nearest ground state with a point of interest
             low=np.array([
                 np.float32(-np.Infinity),
                 np.float32(0.0),
@@ -81,28 +78,27 @@ class MetareasoningEnv(gym.Env):
         self.ground_memory_mdp = None
         self.abstract_mdp = None
 
-        self.ground_policy_cache = {}
         self.solved_ground_states = []
-        self.visited_ground_states = []
+        self.ground_policy_cache = {}
 
         self.current_ground_state = None
         self.current_abstract_state = None
         self.current_action = None
+        self.current_step = None
 
         self.previous_quality = None
         self.current_quality = None
         self.current_expansion_ratio = None
         self.current_reward_distance = None
-        self.current_step = None
 
     def step(self, action):
         logging.info("ENVIRONMENT STEP [%d, %s, %s]", self.current_step, EXPANSION_STRATEGY_MAP[action], self.current_abstract_state)
 
-        logging.info("-- Executing the policy sketch refine algorithm...")
-        solution = policy_sketch_refine.solve(self.ground_mdp, self.current_ground_state, self.abstract_mdp, self.current_abstract_state, EXPANSION_STRATEGY_MAP[action], GAMMA)
         logging.info("-- Executed the policy sketch refine algorithm")
+        solution = policy_sketch_refine.solve(self.ground_mdp, self.current_ground_state, self.abstract_mdp, self.current_abstract_state, EXPANSION_STRATEGY_MAP[action], GAMMA)
 
-        ground_values = utils.get_ground_values(solution['values'], self.ground_mdp, self.abstract_mdp)
+        # TODO Verify and clean up this confusing code
+        ground_values = utils.get_values(solution['values'], self.ground_mdp, self.abstract_mdp)
         ground_states = self.abstract_mdp.get_ground_states([self.current_abstract_state])
         ground_policy = utils.get_ground_policy(ground_values, self.ground_mdp, self.abstract_mdp, ground_states, self.current_abstract_state, GAMMA)
 
@@ -120,16 +116,13 @@ class MetareasoningEnv(gym.Env):
             logging.info(">>>> Encountered a step greater than the horizon")
 
         while self.current_ground_state in self.solved_ground_states and not self.__get_done():
-            self.visited_ground_states.append(self.current_ground_state)
-
             self.current_action = self.ground_policy_cache[self.current_ground_state]
 
             logging.info(">>>> Ground State: [%s] | Abstract State: [%s] | Action: [%s]", self.current_ground_state, self.current_abstract_state, self.current_action)
-            printer.print_earth_observation_policy(self.ground_mdp, visited_ground_states=self.visited_ground_states, expanded_ground_states=ground_states, ground_policy_cache=self.ground_policy_cache)
+            printer.print_earth_observation_policy(self.ground_mdp, current_ground_state=self.current_ground_state, expanded_ground_states=self.abstract_mdp.get_ground_states([self.current_abstract_state]), ground_policy_cache=self.ground_policy_cache)
 
             self.current_ground_state = utils.get_successor_state(self.current_ground_state, self.current_action, self.ground_mdp)
             self.current_abstract_state = self.abstract_mdp.get_abstract_state(self.current_ground_state)
-
             self.current_step += 1
 
         self.previous_quality = self.current_quality
@@ -147,40 +140,39 @@ class MetareasoningEnv(gym.Env):
         logging.info("-- Built the earth observation MDP: [states=%d, actions=%d]", len(self.ground_mdp.states()), len(self.ground_mdp.actions()))
 
         self.ground_memory_mdp = cplex_mdp_solver.MemoryMDP(self.ground_mdp)
-        logging.info("-- Built the earth observation memory MDP: [states=%d, actions=%d]", self.ground_memory_mdp.n_states, self.ground_memory_mdp.n_actions)
+        logging.info("-- Built the earth observation memory MDP: [states=%d, actions=%d]", len(self.ground_memory_mdp.states), len(self.ground_memory_mdp.actions))
 
         self.abstract_mdp = EarthObservationAbstractMDP(self.ground_mdp, ABSTRACTION, ABSTRACT_STATE_WIDTH, ABSTRACT_STATE_HEIGHT)
         logging.info("-- Built the abstract earth observation MDP: [states=%d, actions=%d]", len(self.abstract_mdp.states()), len(self.abstract_mdp.actions()))
 
         abstract_solution = cplex_mdp_solver.solve(self.abstract_mdp, GAMMA)
-        abstract_policy = utils.get_full_ground_policy(abstract_solution['values'], self.abstract_mdp, self.abstract_mdp.states(), GAMMA)
+        abstract_policy = utils.get_policy(abstract_solution['values'], self.abstract_mdp, GAMMA)
         logging.info("-- Solved the abstract earth observation MDP: [states=%d, actions=%d]", len(self.abstract_mdp.states()), len(self.abstract_mdp.actions()))
 
+        self.solved_ground_states = []    
         self.ground_policy_cache = {}
         for ground_state in self.ground_mdp.states():
             self.ground_policy_cache[ground_state] = abstract_policy[self.abstract_mdp.get_abstract_state(ground_state)]
-        logging.info("-- Built the ground policy cache from the abstract policy")
-
-        self.solved_ground_states = []
-        self.visited_ground_states = []
+        logging.info("-- Built the ground policy cache from the abstract policy")    
 
         self.current_ground_state = INITIAL_GROUND_STATE
         self.current_abstract_state = self.abstract_mdp.get_abstract_state(self.current_ground_state)
         self.current_action = self.ground_policy_cache[self.current_ground_state]
+        self.current_step = 0
 
         self.previous_quality = 0
         self.current_quality = self.__get_current_quality()
         self.current_expansions = 0
         self.current_expansion_ratio = self.__get_current_expansion_ratio()
         self.current_reward_distance = self.__get_current_reward_distance()
-        self.current_step = 0
 
         logging.info("SIMULATION")
         logging.info(">>>> Ground State: [%s] | Abstract State: [%s] | Action: [%s]", self.current_ground_state, self.current_abstract_state, self.current_action)
-        printer.print_earth_observation_policy(self.ground_mdp, visited_ground_states=[self.current_ground_state], expanded_ground_states=[self.current_ground_state], ground_policy_cache=self.ground_policy_cache)
+        printer.print_earth_observation_policy(self.ground_mdp, current_ground_state=self.current_ground_state, expanded_ground_states=[], ground_policy_cache=self.ground_policy_cache)
 
         return self.__get_observation()
 
+    # TODO Verify the correctness of policy evaluation
     def __get_current_quality(self):
         states = self.ground_memory_mdp.states
         actions = self.ground_memory_mdp.actions
@@ -230,10 +222,9 @@ class MetareasoningEnv(gym.Env):
             np.float32(self.current_expansion_ratio),
             np.float32(self.current_reward_distance)
         ])
-
+    
+    # TODO Add a fixed cost for the abstract states expanded in the PAMDP or the number of ground/abstract variables
     def __get_reward(self):
-        # return 100 * max((self.current_quality - self.previous_quality), 0)
-        # return 100 * (self.current_quality - self.previous_quality)
         return self.current_quality - self.previous_quality
 
     def __get_done(self):
@@ -242,7 +233,7 @@ class MetareasoningEnv(gym.Env):
     def __get_info(self, action):
         return {'action': action}
 
-
+ 
 def main():
     random.seed(5)
 

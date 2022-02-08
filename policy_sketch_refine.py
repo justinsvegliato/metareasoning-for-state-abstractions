@@ -6,15 +6,22 @@ from partially_abstract_mdp import PartiallyAbstractMDP
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
 
-# TODO: Move the magic number out of this function
+# TODO Verify and move the magic number out of this function
+def is_relevant(ground_mdp, abstract_mdp, current_location, point_of_interest_location):
+    vertical_distance = abs(current_location[0] - point_of_interest_location[0])
+    horizontal_displacement = point_of_interest_location[1] - current_location[1]
+    horizontal_distance = abs(horizontal_displacement) if horizontal_displacement >= 0 else ground_mdp.width() - abs(horizontal_displacement)
+    if vertical_distance > abstract_mdp.abstract_state_height * 3 or horizontal_distance > abstract_mdp.abstract_state_width * 3:
+        return False
+
+    return True
+
+
 def get_greedy_point_of_interest_abstract_states(ground_mdp, abstract_mdp, current_location, current_weather_status):
     point_of_interest_abstract_states = set()
 
     for point_of_interest_location in current_weather_status:
-        vertical_distance = abs(current_location[0] - point_of_interest_location[0])
-        horizontal_displacement = point_of_interest_location[1] - current_location[1]
-        horizontal_distance = abs(horizontal_displacement) if horizontal_displacement >= 0 else ground_mdp.width() - abs(horizontal_displacement)
-        if vertical_distance > abstract_mdp.abstract_state_height * 3 or horizontal_distance > abstract_mdp.abstract_state_width * 3:
+        if not is_relevant(ground_mdp, abstract_mdp, current_location, point_of_interest_location):
             continue
 
         point_of_interest_ground_state = ground_mdp.get_state_from_state_factors(point_of_interest_location, current_weather_status)
@@ -28,6 +35,9 @@ def get_proactive_point_of_interest_abstract_states(ground_mdp, abstract_mdp, cu
     point_of_interest_abstract_states = set()
 
     for point_of_interest_location in current_weather_status:
+        if not is_relevant(ground_mdp, abstract_mdp, current_location, point_of_interest_location):
+            continue
+
         x_range = []
         if current_location[1] < point_of_interest_location[1]:
             x_range += range(current_location[1], point_of_interest_location[1] + 1)
@@ -70,7 +80,8 @@ def refine(ground_mdp, ground_state, abstract_mdp, abstract_state, sketched_solu
 
     logging.info("---- Expanded the abstract states: %s", point_of_interest_abstract_state_set)
 
-    partially_abstract_mdp = PartiallyAbstractMDP(ground_mdp, abstract_mdp, list(point_of_interest_abstract_state_set))
+    grounding_abstract_states = list(point_of_interest_abstract_state_set)
+    partially_abstract_mdp = PartiallyAbstractMDP(ground_mdp, abstract_mdp, grounding_abstract_states)
     logging.info("---- Built the PAMDP: [states=%d, actions=%d]", len(partially_abstract_mdp.states()), len(partially_abstract_mdp.actions()))
 
     refined_solution = cplex_mdp_solver.solve(partially_abstract_mdp, gamma)

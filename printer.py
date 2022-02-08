@@ -2,7 +2,7 @@ import sys
 
 from termcolor import colored
 
-IS_ACTIVE = False
+IS_ACTIVE = True
 
 SYMBOLS = {
     0: '\u00b7',
