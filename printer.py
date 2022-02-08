@@ -12,7 +12,8 @@ SYMBOLS = {
     'STAY': '\u2205',
     'NORTH': '\u2191',
     'SOUTH': '\u2193',
-    'IMAGE': '\u25A1'
+    'IMAGE': '\u2726',
+    'NULL': '\u2A09'
 }
 
 BORDER_CHARACTER = "="
@@ -98,7 +99,7 @@ def print_mdp(mdp):
     print_start_state_function(mdp)
 
 
-def print_earth_observation_policy(earth_observation_mdp, visited_ground_states=[], expanded_ground_states=[], ground_policy_cache={}):
+def print_earth_observation_policy(earth_observation_mdp, current_ground_state, expanded_ground_states=[], ground_policy_cache={}):
     if not IS_ACTIVE:
         return False
 
@@ -113,8 +114,7 @@ def print_earth_observation_policy(earth_observation_mdp, visited_ground_states=
         for column in range(width):
             location = (row, column)
 
-            current_state = visited_ground_states[-1]
-            _, current_poi_weather = earth_observation_mdp.get_state_factors_from_state(current_state)
+            _, current_poi_weather = earth_observation_mdp.get_state_factors_from_state(current_ground_state)
 
             state = earth_observation_mdp.get_state_from_state_factors(location, current_poi_weather)
 
@@ -127,14 +127,14 @@ def print_earth_observation_policy(earth_observation_mdp, visited_ground_states=
                     action = ground_policy_cache[state]
                     symbol = SYMBOLS[action]
                 else:
-                    symbol = "\u2A09"
+                    symbol = SYMBOLS['NULL']
 
-            if state == visited_ground_states[-1]:
+            if state == current_ground_state:
                 symbol = colored(symbol, 'red')
             elif state in expanded_ground_states:
-                symbol = colored(symbol, 'blue')
-            elif state in ground_policy_cache:
                 symbol = colored(symbol, 'green')
+            elif state in ground_policy_cache:
+                symbol = colored(symbol, 'blue')
 
             text += symbol
             text += "  "

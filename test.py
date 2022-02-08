@@ -16,6 +16,29 @@ LOGGING_DIRECTORY = 'logs'
 INFO_KEYWORDS = ('action',)
 
 
+def get_mean_reward(y):
+    return np.mean(y[-100:])
+
+
+def get_isolated_mean_rewards(results):
+    isolated_mean_rewards = [[], []]
+
+    for _, row in results.iterrows():
+        isolated_mean_rewards[int(row['action'])].append(row['r'])
+
+    return [np.mean(isolated_mean_rewards[0]), np.mean(isolated_mean_rewards[1])]
+
+
+def get_action_probabilities(results):
+    actions = (results.loc[:, 'action'].values)[-100:]
+
+    action_frequencies = [0, 0]
+    for action in actions:
+        action_frequencies[action] += 1
+
+    return [action_frequency / len(actions) for action_frequency in action_frequencies]
+
+
 class WandbCallback(BaseCallback):
     def __init__(self, project, config, logging_directory):
         super(WandbCallback, self).__init__()
@@ -34,18 +57,14 @@ class WandbCallback(BaseCallback):
         x, y = ts2xy(results, X_TIMESTEPS)
 
         if len(x) > 0:
-            actions = (results.loc[:,'action'].values)[-100:]
-
-            action_frequencies = [0, 0]
-            for action in actions:
-                action_frequencies[action] += 1
-
-            action_probabilities = [action_frequency / len(actions) for action_frequency in action_frequencies]
-
-            mean_reward = np.mean(y[-100:])
+            mean_reward = get_mean_reward(y)
+            isolated_mean_rewards = get_isolated_mean_rewards(results)
+            action_probabilities = get_action_probabilities(results)
 
             wandb.log({
                 'Training/Reward': mean_reward,
+                'Training/Reward_Naive_Only': isolated_mean_rewards[0],
+                'Training/Reward_Proactive_Only': isolated_mean_rewards[1],
                 'Training/Naive': action_probabilities[0],
                 'Training/Proactive': action_probabilities[1]
             })
