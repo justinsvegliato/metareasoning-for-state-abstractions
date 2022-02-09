@@ -10,7 +10,7 @@ from metareasoning_env import MetareasoningEnv
 PROJECT = 'metareasoning-for-state-abstractions'
 CONFIG = {
     'policy_type': 'MlpPolicy',
-    'total_timesteps': 10000
+    'total_timesteps': 3000
 }
 LOGGING_DIRECTORY = 'logs'
 INFO_KEYWORDS = ('action',)
