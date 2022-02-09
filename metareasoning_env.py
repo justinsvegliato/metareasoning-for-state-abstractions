@@ -55,6 +55,7 @@ class MetareasoningEnv(gym.Env):
         # TODO Implement a feature that represents all of the nearest abstract states with reward
         # TODO Implement a feature that measures the current abstract state's local connectivity
         # TODO Implement a feature that indicates whether we have we seen this weather pattern already
+        # TODO Update Feature 3
         self.observation_space = spaces.Box(
             # (1) Feature 1: The difference between the value of the current policy and the value of the previous policy
             # (2) Feature 2: The percentage of abstract states that have been expanded
@@ -156,7 +157,7 @@ class MetareasoningEnv(gym.Env):
 
         # TODO Verify this code for generating an initial ground state
         initial_location = (0, 0)
-        initial_point_of_interest_description =  {key: earth_observation_mdp.MAX_VISIBILITY for key in self.ground_mdp.point_of_interest_description}
+        initial_point_of_interest_description = {key: earth_observation_mdp.MAX_VISIBILITY for key in self.ground_mdp.point_of_interest_description}
         self.initial_ground_state = self.ground_mdp.get_state_from_state_factors(initial_location, initial_point_of_interest_description)
 
         self.current_ground_state = self.initial_ground_state
@@ -177,6 +178,10 @@ class MetareasoningEnv(gym.Env):
         return self.__get_observation()
 
     # TODO Verify the correctness of policy evaluation
+    # TODO Pick a way of choosing values: 
+    #   (1) The initial ground state (#3)
+    #   (2) The ground state in the abstract state at which you made a meta-level decision (#2)
+    #   (3) The average over all ground states in the abstract state at which you made a meta-level decision (#1)
     def __get_current_quality(self):
         states = self.ground_memory_mdp.states
         actions = self.ground_memory_mdp.actions
@@ -193,6 +198,7 @@ class MetareasoningEnv(gym.Env):
 
         action_sequence = [ACTION_MAP[self.ground_policy_cache[state]] for state in states]
 
+        # TODO Samer: Verify this horizon: (HORIZON - self.current_step)
         while step < HORIZON:
             action_values = rewards + GAMMA * np.sum(transition_probabilities * values.reshape(dimension_array), axis=2)
             values = np.choose(action_sequence, action_values.T)
@@ -215,7 +221,7 @@ class MetareasoningEnv(gym.Env):
             horizontal_displacement = point_of_interest_location[1] - current_location[1]
             horizontal_distance = abs(horizontal_displacement) if horizontal_displacement >= 0 else self.ground_mdp.width() - abs(horizontal_displacement)
             manhattan_distance = vertical_distance + horizontal_distance
-
+ 
             current_reward_distance = min(current_reward_distance, manhattan_distance)
 
         return current_reward_distance
