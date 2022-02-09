@@ -10,6 +10,7 @@ import cplex_mdp_solver
 import policy_sketch_refine
 import printer
 import utils
+import earth_observation_mdp
 from earth_observation_abstract_mdp import EarthObservationAbstractMDP
 from earth_observation_mdp import EarthObservationMDP
 
@@ -21,8 +22,6 @@ POINTS_OF_INTEREST = 2
 ABSTRACTION = 'MEAN'
 ABSTRACT_STATE_WIDTH = 3
 ABSTRACT_STATE_HEIGHT = 3
-
-INITIAL_GROUND_STATE = 0
 
 EXPAND_POINTS_OF_INTEREST = True
 GAMMA = 0.99
@@ -155,7 +154,12 @@ class MetareasoningEnv(gym.Env):
             self.ground_policy_cache[ground_state] = abstract_policy[self.abstract_mdp.get_abstract_state(ground_state)]
         logging.info("-- Built the ground policy cache from the abstract policy")    
 
-        self.current_ground_state = INITIAL_GROUND_STATE
+        # TODO Verify this code for generating an initial ground state
+        initial_location = (0, 0)
+        initial_point_of_interest_description =  {key: earth_observation_mdp.MAX_VISIBILITY for key in self.ground_mdp.point_of_interest_description}
+        self.initial_ground_state = self.ground_mdp.get_state_from_state_factors(initial_location, initial_point_of_interest_description)
+
+        self.current_ground_state = self.initial_ground_state
         self.current_abstract_state = self.abstract_mdp.get_abstract_state(self.current_ground_state)
         self.current_action = self.ground_policy_cache[self.current_ground_state]
         self.current_step = 0
@@ -196,7 +200,7 @@ class MetareasoningEnv(gym.Env):
 
         values = {state: values[state] for state in states}
 
-        return values[INITIAL_GROUND_STATE]
+        return values[self.initial_ground_state]
 
     def __get_current_expansion_ratio(self):
         return self.current_expansions / len(self.abstract_mdp.states())
