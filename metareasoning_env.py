@@ -44,6 +44,7 @@ EXPANSION_STRATEGY_MAP = {
 
 ALPHA = 100
 BETA = 0
+SCALE = 0.000001
 
 # REWARD_TYPE = 'INITIAL_GROUND_STATE'
 REWARD_TYPE = 'SINGLE_DECISION_POINT_GROUND_STATE'
@@ -89,6 +90,7 @@ class MetareasoningEnv(gym.Env):
 
         self.decision_point_ground_state = None
         self.decision_point_ground_states = []
+
         self.computations = []
 
         self.current_ground_state = None
@@ -96,6 +98,8 @@ class MetareasoningEnv(gym.Env):
         self.current_action = None
         self.current_step = None
 
+        self.previous_computation_time = None
+        self.current_computation_time = None
         self.previous_quality = None
         self.current_quality = None
         self.current_expansion_ratio = None
@@ -121,6 +125,7 @@ class MetareasoningEnv(gym.Env):
 
         self.decision_point_ground_state = self.current_ground_state
         self.decision_point_ground_states = new_solved_ground_states
+
         self.computations.append({
             'state_space_size': solution['state_space_size'],
             'action_space_size': solution['action_space_size']
@@ -142,6 +147,8 @@ class MetareasoningEnv(gym.Env):
             self.current_abstract_state = self.abstract_mdp.get_abstract_state(self.current_ground_state)
             self.current_step += 1
 
+        self.previous_computation_time = self.current_computation_time
+        self.current_computation_time += utils.get_computation_time(solution['state_space_size'], solution['action_space_size'], SCALE)
         self.previous_quality = self.current_quality
         self.current_quality = self.__get_current_quality()
         self.current_expansions += 1
@@ -178,6 +185,7 @@ class MetareasoningEnv(gym.Env):
 
         self.decision_point_ground_state = self.initial_ground_state
         self.decision_point_ground_states = [self.initial_ground_state]
+
         self.computations = []
 
         self.current_ground_state = self.initial_ground_state
@@ -185,6 +193,8 @@ class MetareasoningEnv(gym.Env):
         self.current_action = self.ground_policy_cache[self.current_ground_state]
         self.current_step = 0
 
+        self.previous_computation_time = 0
+        self.current_computation_time = 0
         self.previous_quality = 0
         self.current_quality = self.__get_current_quality()
         self.current_expansions = 0
@@ -267,9 +277,8 @@ class MetareasoningEnv(gym.Env):
             np.float32(self.current_reward_distance)
         ])
     
-    # TODO Add a fixed cost for the abstract states expanded in the PAMDP or the number of ground/abstract variables
     def __get_reward(self):
-        return utils.get_time_dependent_utility(self.current_quality, 0, ALPHA, BETA) - utils.get_time_dependent_utility(self.previous_quality, 0, ALPHA, BETA)
+        return utils.get_time_dependent_utility(self.current_quality, self.current_computation_time, ALPHA, BETA) - utils.get_time_dependent_utility(self.previous_quality, self.previous_computation_time, ALPHA, BETA)
 
     def __get_done(self):
         return self.current_step > HORIZON
