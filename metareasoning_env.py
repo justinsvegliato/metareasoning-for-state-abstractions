@@ -89,6 +89,7 @@ class MetareasoningEnv(gym.Env):
 
         self.decision_point_ground_state = None
         self.decision_point_ground_states = []
+        self.computations = []
 
         self.current_ground_state = None
         self.current_abstract_state = None
@@ -120,6 +121,10 @@ class MetareasoningEnv(gym.Env):
 
         self.decision_point_ground_state = self.current_ground_state
         self.decision_point_ground_states = new_solved_ground_states
+        self.computations.append({
+            'state_space_size': solution['state_space_size'],
+            'action_space_size': solution['action_space_size']
+        })
 
         if self.current_ground_state not in self.solved_ground_states:
             logging.info(">>>> Encountered a ground state not in the solved ground states")
@@ -173,6 +178,7 @@ class MetareasoningEnv(gym.Env):
 
         self.decision_point_ground_state = self.initial_ground_state
         self.decision_point_ground_states = [self.initial_ground_state]
+        self.computations = []
 
         self.current_ground_state = self.initial_ground_state
         self.current_abstract_state = self.abstract_mdp.get_abstract_state(self.current_ground_state)
