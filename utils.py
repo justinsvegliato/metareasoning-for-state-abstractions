@@ -89,3 +89,15 @@ def get_successor_state(current_state, current_action, mdp):
 
 def get_partitions(l, num_partitions):
     return [l[i:i + num_partitions] for i in range(0, len(l), num_partitions)]
+
+
+def get_intrinisic_value(quality, alpha):
+    return alpha * quality
+
+
+def get_cost_of_time(time, beta):
+    return beta * time
+
+
+def get_time_dependent_utility(quality, time, alpha, beta):
+    return get_intrinisic_value(quality, alpha) - get_cost_of_time(time, beta)

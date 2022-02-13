@@ -42,6 +42,9 @@ EXPANSION_STRATEGY_MAP = {
     1: 'PROACTIVE'
 }
 
+ALPHA = 100
+BETA = 0
+
 # REWARD_TYPE = 'INITIAL_GROUND_STATE'
 REWARD_TYPE = 'SINGLE_DECISION_POINT_GROUND_STATE'
 # REWARD_TYPE = 'ALL_DECISION_POINT_GROUND_STATES'
@@ -188,11 +191,6 @@ class MetareasoningEnv(gym.Env):
 
         return self.__get_observation()
 
-    # TODO Verify the correctness of policy evaluation
-    # TODO Pick a way of choosing values: 
-    #   (1) The initial ground state (#3)
-    #   (2) The ground state in the abstract state at which you made a meta-level decision (#2)
-    #   (3) The average over all ground states in the abstract state at which you made a meta-level decision (#1)
     def __get_values(self):
         states = self.ground_memory_mdp.states
         actions = self.ground_memory_mdp.actions
@@ -209,7 +207,6 @@ class MetareasoningEnv(gym.Env):
 
         action_sequence = [ACTION_MAP[self.ground_policy_cache[state]] for state in states]
 
-        # TODO Samer: Verify this horizon: (HORIZON - self.current_step)
         while step < HORIZON:
             action_values = rewards + GAMMA * np.sum(transition_probabilities * values.reshape(dimension_array), axis=2)
             values = np.choose(action_sequence, action_values.T)
@@ -266,7 +263,7 @@ class MetareasoningEnv(gym.Env):
     
     # TODO Add a fixed cost for the abstract states expanded in the PAMDP or the number of ground/abstract variables
     def __get_reward(self):
-        return self.current_quality - self.previous_quality
+        return utils.get_time_dependent_utility(self.current_quality, 0, ALPHA, BETA) - utils.get_time_dependent_utility(self.previous_quality, 0, ALPHA, BETA)
 
     def __get_done(self):
         return self.current_step > HORIZON
