@@ -1,16 +1,17 @@
 
 import logging
 import random
+import statistics
 
 import gym
 import numpy as np
 from gym import spaces
 
 import cplex_mdp_solver
+import earth_observation_mdp
 import policy_sketch_refine
 import printer
 import utils
-import earth_observation_mdp
 from earth_observation_abstract_mdp import EarthObservationAbstractMDP
 from earth_observation_mdp import EarthObservationMDP
 
@@ -41,12 +42,14 @@ EXPANSION_STRATEGY_MAP = {
     1: 'PROACTIVE'
 }
 
+# REWARD_TYPE = 'INITIAL_GROUND_STATE'
+REWARD_TYPE = 'SINGLE_DECISION_POINT_GROUND_STATE'
+# REWARD_TYPE = 'ALL_DECISION_POINT_GROUND_STATES'
+
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
 
-# TODO Build the ground MDP and memory MDP once
 # TODO Vectorize as many operations as possible
-# TODO Check to see if the actions are working properly
 class MetareasoningEnv(gym.Env):
 
     def __init__(self, ):
@@ -82,6 +85,7 @@ class MetareasoningEnv(gym.Env):
         self.ground_policy_cache = {}
 
         self.decision_point_ground_state = None
+        self.decision_point_ground_states = []
 
         self.current_ground_state = None
         self.current_abstract_state = None
@@ -100,18 +104,19 @@ class MetareasoningEnv(gym.Env):
         solution = policy_sketch_refine.solve(self.ground_mdp, self.current_ground_state, self.abstract_mdp, self.current_abstract_state, EXPANSION_STRATEGY_MAP[action], GAMMA)
 
         # TODO Verify and clean up this confusing code
-        ground_values = utils.get_values(solution['values'], self.ground_mdp, self.abstract_mdp)
-        ground_states = self.abstract_mdp.get_ground_states([self.current_abstract_state])
-        ground_policy = utils.get_ground_policy(ground_values, self.ground_mdp, self.abstract_mdp, ground_states, self.current_abstract_state, GAMMA)
+        new_solved_ground_values = utils.get_values(solution['values'], self.ground_mdp, self.abstract_mdp)
+        new_solved_ground_states = self.abstract_mdp.get_ground_states([self.current_abstract_state])
+        new_solved_ground_policy = utils.get_ground_policy(new_solved_ground_values, self.ground_mdp, self.abstract_mdp, new_solved_ground_states, self.current_abstract_state, GAMMA)
 
-        self.solved_ground_states += ground_states
-        for ground_state in ground_states:
-            self.ground_policy_cache[ground_state] = ground_policy[ground_state]
+        self.solved_ground_states += new_solved_ground_states
+        for new_solved_ground_state in new_solved_ground_states:
+            self.ground_policy_cache[new_solved_ground_state] = new_solved_ground_policy[new_solved_ground_state]
         logging.info("-- Updated the ground policy cache for the new abstract state: [%s]", self.current_abstract_state)
 
         logging.info("SIMULATION")
 
         self.decision_point_ground_state = self.current_ground_state
+        self.decision_point_ground_states = new_solved_ground_states
 
         if self.current_ground_state not in self.solved_ground_states:
             logging.info(">>>> Encountered a ground state not in the solved ground states")
@@ -159,12 +164,12 @@ class MetareasoningEnv(gym.Env):
             self.ground_policy_cache[ground_state] = abstract_policy[self.abstract_mdp.get_abstract_state(ground_state)]
         logging.info("-- Built the ground policy cache from the abstract policy")    
 
-        # TODO Verify this code for generating an initial ground state
         initial_location = (0, 0)
         initial_point_of_interest_description = {key: earth_observation_mdp.MAX_VISIBILITY for key in self.ground_mdp.point_of_interest_description}
         self.initial_ground_state = self.ground_mdp.get_state_from_state_factors(initial_location, initial_point_of_interest_description)
 
         self.decision_point_ground_state = self.initial_ground_state
+        self.decision_point_ground_states = [self.initial_ground_state]
 
         self.current_ground_state = self.initial_ground_state
         self.current_abstract_state = self.abstract_mdp.get_abstract_state(self.current_ground_state)
@@ -188,7 +193,7 @@ class MetareasoningEnv(gym.Env):
     #   (1) The initial ground state (#3)
     #   (2) The ground state in the abstract state at which you made a meta-level decision (#2)
     #   (3) The average over all ground states in the abstract state at which you made a meta-level decision (#1)
-    def __get_current_quality(self):
+    def __get_values(self):
         states = self.ground_memory_mdp.states
         actions = self.ground_memory_mdp.actions
         rewards = self.ground_memory_mdp.rewards
@@ -210,9 +215,29 @@ class MetareasoningEnv(gym.Env):
             values = np.choose(action_sequence, action_values.T)
             step += 1
 
-        values = {state: values[state] for state in states}
+        return {state: values[state] for state in states}
 
+    def __get_current_quality(self):
+        if REWARD_TYPE == 'INITIAL_GROUND_STATE':
+            return self.__get_current_quality_from_initial_ground_state()
+
+        if REWARD_TYPE == 'SINGLE_DECISION_POINT_GROUND_STATE':
+            return self.__get_current_quality_from_decision_point_ground_state()
+
+        if REWARD_TYPE == 'ALL_DECISION_POINT_GROUND_STATES':
+            return self.__get_current_quality_from_decision_point_ground_states()
+
+    def __get_current_quality_from_initial_ground_state(self):
+        values = self.__get_values()
+        return values[self.initial_ground_state]
+
+    def __get_current_quality_from_decision_point_ground_state(self):
+        values = self.__get_values()
         return values[self.decision_point_ground_state]
+
+    def __get_current_quality_from_decision_point_ground_states(self):
+        values = self.__get_values()        
+        return statistics.mean([values[decision_point_ground_state] for decision_point_ground_state in self.decision_point_ground_states])
 
     def __get_current_expansion_ratio(self):
         return self.current_expansions / len(self.abstract_mdp.states())
