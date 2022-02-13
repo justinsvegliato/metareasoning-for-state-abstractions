@@ -91,6 +91,10 @@ def get_partitions(l, num_partitions):
     return [l[i:i + num_partitions] for i in range(0, len(l), num_partitions)]
 
 
+def get_time(state_space_size, action_space_size):
+    return state_space_size ** 2 * action_space_size
+
+
 def get_intrinisic_value(quality, alpha):
     return alpha * quality
 
