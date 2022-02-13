@@ -138,6 +138,9 @@ class PartiallyAbstractMDP:
         self.transition_probabilities = self.__compute_transition_probabilities(ground_mdp, abstract_mdp)
         self.start_state_probabilities = self.__compute_start_state_probabilities(ground_mdp, abstract_mdp)
 
+        self.state_space_size = len(self.state_space)
+        self.action_space_size = len(self.action_space)
+
     def states(self):
         return list(self.state_space)
 
