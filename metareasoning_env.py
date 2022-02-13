@@ -81,6 +81,8 @@ class MetareasoningEnv(gym.Env):
         self.solved_ground_states = []
         self.ground_policy_cache = {}
 
+        self.decision_point_ground_state = None
+
         self.current_ground_state = None
         self.current_abstract_state = None
         self.current_action = None
@@ -108,6 +110,8 @@ class MetareasoningEnv(gym.Env):
         logging.info("-- Updated the ground policy cache for the new abstract state: [%s]", self.current_abstract_state)
 
         logging.info("SIMULATION")
+
+        self.decision_point_ground_state = self.current_ground_state
 
         if self.current_ground_state not in self.solved_ground_states:
             logging.info(">>>> Encountered a ground state not in the solved ground states")
@@ -160,6 +164,8 @@ class MetareasoningEnv(gym.Env):
         initial_point_of_interest_description = {key: earth_observation_mdp.MAX_VISIBILITY for key in self.ground_mdp.point_of_interest_description}
         self.initial_ground_state = self.ground_mdp.get_state_from_state_factors(initial_location, initial_point_of_interest_description)
 
+        self.decision_point_ground_state = self.initial_ground_state
+
         self.current_ground_state = self.initial_ground_state
         self.current_abstract_state = self.abstract_mdp.get_abstract_state(self.current_ground_state)
         self.current_action = self.ground_policy_cache[self.current_ground_state]
@@ -206,7 +212,7 @@ class MetareasoningEnv(gym.Env):
 
         values = {state: values[state] for state in states}
 
-        return values[self.initial_ground_state]
+        return values[self.decision_point_ground_state]
 
     def __get_current_expansion_ratio(self):
         return self.current_expansions / len(self.abstract_mdp.states())
