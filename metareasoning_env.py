@@ -125,7 +125,6 @@ class MetareasoningEnv(gym.Env):
 
         self.decision_point_ground_state = self.current_ground_state
         self.decision_point_ground_states = new_solved_ground_states
-
         self.computations.append({
             'state_space_size': solution['state_space_size'],
             'action_space_size': solution['action_space_size']

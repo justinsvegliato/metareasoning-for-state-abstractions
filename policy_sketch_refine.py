@@ -66,6 +66,8 @@ def sketch(abstract_mdp, gamma):
 
 def refine(ground_mdp, ground_state, abstract_mdp, abstract_state, sketched_solution, expansion_strategy, gamma):
     if expansion_strategy == 'NAIVE':
+        sketched_solution['state_space_size'] = abstract_mdp.state_space_size
+        sketched_solution['action_space_size'] = abstract_mdp.action_space_size
         return sketched_solution
 
     current_location, current_weather_status = ground_mdp.get_state_factors_from_state(ground_state)
@@ -93,7 +95,6 @@ def refine(ground_mdp, ground_state, abstract_mdp, abstract_state, sketched_solu
 
     refined_solution['state_space_size'] = partially_abstract_mdp.state_space_size
     refined_solution['action_space_size'] = partially_abstract_mdp.action_space_size
-
     return refined_solution
 
 

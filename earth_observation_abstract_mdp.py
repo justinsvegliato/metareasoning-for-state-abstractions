@@ -297,6 +297,9 @@ class EarthObservationAbstractMDP:
         self.abstract_transition_probabilities = self.__compute_abstract_transition_probabilities(mdp)
         self.abstract_start_state_probabilities = self.__compute_abstract_start_state_probabilities(mdp)
 
+        self.state_space_size = len(self.abstract_states)
+        self.action_space_size = len(self.abstract_actions)
+
     def states(self):
         return list(self.abstract_states)
 
