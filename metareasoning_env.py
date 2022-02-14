@@ -162,7 +162,7 @@ class MetareasoningEnv(gym.Env):
         self.ground_mdp = EarthObservationMDP(SIZE, POINTS_OF_INTEREST)
         logging.info("-- Built the earth observation MDP: [states=%d, actions=%d]", len(self.ground_mdp.states()), len(self.ground_mdp.actions()))
 
-        self.ground_memory_mdp = cplex_mdp_solver.MemoryMDP(self.ground_mdp)
+        self.ground_memory_mdp = cplex_mdp_solver.MemoryMDP(self.ground_mdp, parallelize=True)
         logging.info("-- Built the earth observation memory MDP: [states=%d, actions=%d]", len(self.ground_memory_mdp.states), len(self.ground_memory_mdp.actions))
 
         self.abstract_mdp = EarthObservationAbstractMDP(self.ground_mdp, ABSTRACTION, ABSTRACT_STATE_WIDTH, ABSTRACT_STATE_HEIGHT)

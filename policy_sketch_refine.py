@@ -87,7 +87,7 @@ def refine(ground_mdp, ground_state, abstract_mdp, abstract_state, sketched_solu
     logging.info("---- Built the PAMDP: [states=%d, actions=%d]", len(partially_abstract_mdp.states()), len(partially_abstract_mdp.actions()))
 
     refined_solution = cplex_mdp_solver.solve(partially_abstract_mdp, gamma)
-
+    
     if refined_solution:
         logging.info("---- Ran the CPLEX solver")
     else:
