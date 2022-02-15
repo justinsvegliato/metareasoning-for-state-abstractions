@@ -1,6 +1,5 @@
 
 import logging
-import random
 import statistics
 
 import gym
@@ -53,7 +52,6 @@ REWARD_TYPE = 'SINGLE_DECISION_POINT_GROUND_STATE'
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
 
-# TODO Vectorize as many operations as possible
 class MetareasoningEnv(gym.Env):
 
     def __init__(self, ):
@@ -90,6 +88,7 @@ class MetareasoningEnv(gym.Env):
 
         self.decision_point_ground_state = None
         self.decision_point_ground_states = []
+        self.decision_point_abstract_state = None
 
         self.computations = []
 
@@ -125,6 +124,8 @@ class MetareasoningEnv(gym.Env):
 
         self.decision_point_ground_state = self.current_ground_state
         self.decision_point_ground_states = new_solved_ground_states
+        self.decision_point_abstract_state = self.current_abstract_state
+
         self.computations.append({
             'state_space_size': solution['state_space_size'],
             'action_space_size': solution['action_space_size']
@@ -154,7 +155,7 @@ class MetareasoningEnv(gym.Env):
         self.current_expansion_ratio = self.__get_current_expansion_ratio()
         self.current_reward_distance = self.__get_current_reward_distance()
 
-        return self.__get_observation(), self.__get_reward(), self.__get_done(), self.__get_info(action)
+        return self.__get_observation(), self.__get_reward(), self.__get_done(), self.__get_info(self.decision_point_ground_state, self.decision_point_abstract_state, action)
 
     def reset(self):
         logging.info("ENVIRONMENT RESET")
@@ -184,6 +185,7 @@ class MetareasoningEnv(gym.Env):
 
         self.decision_point_ground_state = self.initial_ground_state
         self.decision_point_ground_states = [self.initial_ground_state]
+        self.decision_point_abstract_state = None
 
         self.computations = []
 
@@ -282,25 +284,9 @@ class MetareasoningEnv(gym.Env):
     def __get_done(self):
         return self.current_step > HORIZON
 
-    def __get_info(self, action):
-        return {'action': action}
-
- 
-def main():
-    random.seed(5)
-
-    env = MetareasoningEnv()
-
-    observation = env.reset()
-    print("Observation:", observation)
-
-    done = False
-    while not done:
-        observation, reward, done, _ = env.step(1)
-        print("Observation:", observation)
-        print("Reward:", reward)
-        print("Done:", done)
-
-
-if __name__ == '__main__':
-    main()
+    def __get_info(self, ground_state, abstract_state, action):
+        return {
+            'ground_state': ground_state,
+            'abstract_state': abstract_state,
+            'action': action
+        }
