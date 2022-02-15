@@ -10,10 +10,10 @@ from metareasoning_env import MetareasoningEnv
 PROJECT = 'metareasoning-for-state-abstractions'
 CONFIG = {
     'policy_type': 'MlpPolicy',
-    'total_timesteps': 3000
+    'total_timesteps': 1000
 }
 LOGGING_DIRECTORY = 'logs'
-INFO_KEYWORDS = ('action',)
+INFO_KEYWORDS = ('ground_state', 'abstract_state', 'action')
 
 
 def get_mean_reward(y):
@@ -83,6 +83,7 @@ def main():
         total_timesteps=CONFIG['total_timesteps'],
         callback=WandbCallback(PROJECT, CONFIG, LOGGING_DIRECTORY)
     )
+    model.save("weights/dqn")
 
 
 if __name__ == '__main__':
