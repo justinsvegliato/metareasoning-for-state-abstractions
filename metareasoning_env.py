@@ -1,4 +1,4 @@
-
+import math
 import logging
 import random
 import statistics
@@ -285,9 +285,74 @@ class MetareasoningEnv(gym.Env):
     def __get_info(self, action):
         return {'action': action}
 
+    def closest_goal(self):
+        current_location, current_weather_status = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
+        min_dist_loc = None
+        min_dist = math.inf
+        for key in current_weather_status.keys():
+            dist = 0
+            if key[1] > current_location[1]:
+                dist = key[1] - current_location[1]
+            else:
+                dist = (key[1] + STATE_WIDTH) - current_location[1]
+            if dist < min_dist:
+                min_dist = dist
+                min_dist_loc = key
+
+        return min_dist, min_dist_loc
+
+    def is_kSR(self):
+        current_location, current_weather_status = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
+        min_dist, min_dist_loc = self.closest_goal()
+        extreme_north = (max(0, (current_location[0] - ABSTRACT_STATE_WIDTH)), (current_location[1] + ABSTRACT_STATE_WIDTH) % STATE_WIDTH)
+        extreme_south = (min(STATE_HEIGHT, (current_location[0] + ABSTRACT_STATE_WIDTH)), (current_location[1] + ABSTRACT_STATE_WIDTH) % STATE_WIDTH)
+        if (abs(extreme_north[0] - min_dist_loc[0]) > min_dist) or (abs(extreme_south[0] - min_dist_loc[0]) > min_dist):
+            return False
+        return True
+
+    #NOTE: This relaxes some assumptions from EOD, but also still relies on a bunch of EOD-specific stuff about how state is represented. Also, this relies on the constant, one-step motion of the agent east at every step. In the general case, the for loop over (min_dist - k) will have to be some general estimate of the number of actions needed to encounter the goal. Also, the goal being reached will need to be checked within that loop rather than once at the end, since the agent may reach it part way through the trajectory.
+    def is_probably_kSR(self, k, n, m):
+        #NOTE: could generate list of "goal" states a different way, or perhaps as an argument to the function instead
+        min_dist, min_dist_loc = self.closest_goal()
+        #TODO: what if goal is within k steps?
+
+        possible_states_after_k_arbitrary_actions = []
+        for i in range(n):
+            current_state = self.current_ground_state
+            for j in range(k):
+                action = random.sample(ACTION_MAP.keys(), 1)[0]
+                current_state = utils.get_successor_state(current_state, action, self.ground_mdp)
+            possible_states_after_k_arbitrary_actions.append(current_state)
+            curr_loc, curr_weather = self.ground_mdp.get_state_factors_from_state(current_state)
+
+        #NOTE: could check this for dupes to make slightly faster
+        reachable = [0] * len(possible_states_after_k_arbitrary_actions)
+        for s in range(len(possible_states_after_k_arbitrary_actions)):
+            state = possible_states_after_k_arbitrary_actions[s]
+            goal_found = False
+            for i in range(m):
+                current_state = state
+                for j in range(min_dist - k):
+                    action = random.sample(ACTION_MAP.keys(), 1)[0]
+                    current_state = utils.get_successor_state(current_state, action, self.ground_mdp)
+        
+                current_location, _ = self.ground_mdp.get_state_factors_from_state(current_state)
+                if current_location == min_dist_loc:
+                    goal_found = True
+                    break
+            if goal_found:
+                reachable[s] = 1
+          
+        #print(reachable) 
+        #kSR_prob = sum(reachable)            
+        kSR_prob = float(sum(reachable) / len(reachable))            
+        if min_dist < k:
+            kSR_prob = "too close"
+
+        return kSR_prob 
  
 def main():
-    random.seed(5)
+    random.seed(50)
 
     env = MetareasoningEnv()
 
@@ -296,7 +361,17 @@ def main():
 
     done = False
     while not done:
-        observation, reward, done, _ = env.step(1)
+        action = 1
+        prob_kSR = env.is_probably_kSR(ABSTRACT_STATE_WIDTH, 100, 100)
+        print("SOFT")
+        print(prob_kSR)
+        kSR = env.is_kSR()
+        print("HARD")
+        print(kSR)
+        if kSR:
+            action = 0
+        observation, reward, done, _ = env.step(action)
+        #observation, reward, done, _ = env.step(1)
         print("Observation:", observation)
         print("Reward:", reward)
         print("Done:", done)
