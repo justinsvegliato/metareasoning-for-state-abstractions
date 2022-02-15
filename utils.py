@@ -2,6 +2,7 @@ import random
 
 # TODO Clean up this file because these functions are esoteric as hell
 
+
 def get_policy(values, mdp, gamma):
     policy = {}
 
@@ -39,6 +40,7 @@ def get_values(values, ground_mdp, abstract_mdp):
             ground_values[ground_state] = values[abstract_state]
 
     return ground_values
+
 
 def get_ground_policy(values, ground_mdp, abstract_mdp, ground_states, abstract_state, gamma):
     policy = {}
