@@ -26,7 +26,7 @@ ABSTRACT_STATE_HEIGHT = 3
 EXPAND_POINTS_OF_INTEREST = True
 GAMMA = 0.99
 
-TRAVERSES = 2
+TRAVERSES = 10
 HORIZON = TRAVERSES * STATE_WIDTH
 
 ACTION_MAP = {
@@ -45,9 +45,7 @@ ALPHA = 100
 BETA = 0
 SCALE = 0.000001
 
-# REWARD_TYPE = 'INITIAL_GROUND_STATE'
 REWARD_TYPE = 'SINGLE_DECISION_POINT_GROUND_STATE'
-# REWARD_TYPE = 'ALL_DECISION_POINT_GROUND_STATES'
 
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
