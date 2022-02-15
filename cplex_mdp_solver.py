@@ -1,5 +1,9 @@
+from concurrent.futures import ProcessPoolExecutor
+
 import cplex
 import numpy as np
+
+import utils
 
 IS_VERBOSE = False
 IS_RECORDING = False
@@ -7,9 +11,25 @@ IS_RECORDING = False
 LOWER_BOUND = -10000
 UPPER_BOUND = 10000
 
+NUM_PROCESSES = 72
+
+
+def task(mdp, states, memory_mdp):
+    transition_probabilities = {}
+
+    for state in states:
+        for action in range(memory_mdp.n_actions):
+            for successor_state in range(memory_mdp.n_states):
+                if state not in transition_probabilities:
+                    transition_probabilities[state] = np.zeros(shape=(memory_mdp.n_actions, memory_mdp.n_states))
+
+                transition_probabilities[state][action, successor_state] = mdp.transition_function(memory_mdp.states[state], memory_mdp.actions[action], memory_mdp.states[successor_state])
+
+    return transition_probabilities
+
 
 class MemoryMDP:
-    def __init__(self, mdp):
+    def __init__(self, mdp, parallelize=False):
         self.states = mdp.states()
         self.actions = mdp.actions()
 
@@ -22,10 +42,25 @@ class MemoryMDP:
                 self.rewards[state, action] = mdp.reward_function(self.states[state], self.actions[action])
 
         self.transition_probabilities = np.zeros(shape=(self.n_states, self.n_actions, self.n_states))
-        for state in range(self.n_states):
-            for action in range(self.n_actions):
-                for successor_state in range(self.n_states):
-                    self.transition_probabilities[state, action, successor_state] = mdp.transition_function(self.states[state], self.actions[action], self.states[successor_state])
+
+        if parallelize:
+            with ProcessPoolExecutor(max_workers=NUM_PROCESSES) as pool:
+                partition_futures = []
+                state_space_partitions = utils.get_partitions(range(self.n_states), NUM_PROCESSES)
+
+                for state_space in state_space_partitions:
+                    partition_future = pool.submit(task, mdp, state_space, self)
+                    partition_futures.append(partition_future)
+
+                for partition_future in partition_futures:
+                    result = partition_future.result()
+                    for state in result:
+                        self.transition_probabilities[state] = result[state]
+        else:
+            for state in range(self.n_states):
+                for action in range(self.n_actions):
+                    for successor_state in range(self.n_states):
+                        self.transition_probabilities[state, action, successor_state] = mdp.transition_function(self.states[state], self.actions[action], self.states[successor_state])
 
         self.start_state_probabilities = np.zeros(self.n_states)
         for state in range(self.n_states):
@@ -236,8 +271,8 @@ def solve_feasibly(problem):
     return None
 
 
-def solve(mdp, gamma, constant_state_values={}, relax_infeasible=False):
-    memory_mdp = MemoryMDP(mdp)
+def solve(mdp, gamma, constant_state_values={}, relax_infeasible=False, parallelize=False):
+    memory_mdp = MemoryMDP(mdp, parallelize=parallelize)
 
     validate(memory_mdp, constant_state_values)
 
