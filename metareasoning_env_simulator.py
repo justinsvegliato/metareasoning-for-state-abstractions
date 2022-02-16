@@ -5,6 +5,10 @@ from stable_baselines3 import DQN
 
 from metareasoning_env import EXPANSION_STRATEGY_MAP, MetareasoningEnv
 
+MODEL_DIRECTORY = 'models'
+MODEL_FILE = 'dqn-reference-2'
+MODEL_PATH = '{}/{}'.format(MODEL_DIRECTORY, MODEL_FILE)
+
 # TODO Make this consistent across files
 ROWS = 2
 COLUMNS = 4
@@ -18,7 +22,7 @@ def show_heatmap(env, decisions, action_focus='PROACTIVE'):
             abstract_state_tracker[abstract_state][action] = 0
 
     for abstract_state, action in decisions:
-        abstract_state_tracker[abstract_state][EXPANSION_STRATEGY_MAP[action]] += 1
+        abstract_state_tracker[abstract_state][action] += 1
 
     heatmap_matrix = np.zeros((ROWS, COLUMNS))
     labels = [['' for _ in range(COLUMNS)] for _ in range(ROWS)]
@@ -50,7 +54,7 @@ def show_heatmap(env, decisions, action_focus='PROACTIVE'):
 
 
 def main():
-    model = DQN.load("weights/dqn")
+    model = DQN.load(MODEL_PATH)
 
     step = 0
     decisions = []
@@ -72,7 +76,7 @@ def main():
 
         step += 1
 
-        decisions.append((info['abstract_state'], info['action']))
+        decisions.append((info['abstract_state'], info['decisions'][-1]))
 
     show_heatmap(env, decisions)
 

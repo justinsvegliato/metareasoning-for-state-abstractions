@@ -1,5 +1,6 @@
-import math
 import logging
+import math
+import random
 import statistics
 
 import gym
@@ -26,7 +27,7 @@ ABSTRACT_STATE_HEIGHT = 3
 EXPAND_POINTS_OF_INTEREST = True
 GAMMA = 0.99
 
-TRAVERSES = 20
+TRAVERSES = 2
 HORIZON = TRAVERSES * STATE_WIDTH
 
 ACTION_MAP = {
@@ -88,7 +89,7 @@ class MetareasoningEnv(gym.Env):
         self.decision_point_ground_states = []
         self.decision_point_abstract_state = None
 
-        self.computations = []
+        self.decisions = []
 
         self.current_ground_state = None
         self.current_abstract_state = None
@@ -124,7 +125,8 @@ class MetareasoningEnv(gym.Env):
         self.decision_point_ground_states = new_solved_ground_states
         self.decision_point_abstract_state = self.current_abstract_state
 
-        self.computations.append({
+        self.decisions.append({
+            'expansion_strategy': EXPANSION_STRATEGY_MAP[action], 
             'state_space_size': solution['state_space_size'],
             'action_space_size': solution['action_space_size']
         })
@@ -153,7 +155,7 @@ class MetareasoningEnv(gym.Env):
         self.current_expansion_ratio = self.__get_current_expansion_ratio()
         self.current_reward_distance = self.__get_current_reward_distance()
 
-        return self.__get_observation(), self.__get_reward(), self.__get_done(), self.__get_info(self.decision_point_ground_state, self.decision_point_abstract_state, action)
+        return self.__get_observation(), self.__get_reward(), self.__get_done(), self.__get_info(self.decision_point_ground_state, self.decision_point_abstract_state, self.decisions)
 
     def reset(self):
         logging.info("ENVIRONMENT RESET")
@@ -185,7 +187,7 @@ class MetareasoningEnv(gym.Env):
         self.decision_point_ground_states = [self.initial_ground_state]
         self.decision_point_abstract_state = None
 
-        self.computations = []
+        self.decisions = []
 
         self.current_ground_state = self.initial_ground_state
         self.current_abstract_state = self.abstract_mdp.get_abstract_state(self.current_ground_state)
@@ -282,11 +284,11 @@ class MetareasoningEnv(gym.Env):
     def __get_done(self):
         return self.current_step > HORIZON
 
-    def __get_info(self, ground_state, abstract_state, action):
+    def __get_info(self, ground_state, abstract_state, decisions):
         return {
             'ground_state': ground_state,
             'abstract_state': abstract_state,
-            'action': action
+            'decisions': [decision['expansion_strategy'] for decision in decisions]
         }
 
     def closest_goal(self):
@@ -375,7 +377,6 @@ def main():
         if kSR:
             action = 0
         observation, reward, done, _ = env.step(action)
-        #observation, reward, done, _ = env.step(1)
         print("Observation:", observation)
         print("Reward:", reward)
         print("Done:", done)

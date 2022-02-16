@@ -1,3 +1,5 @@
+import ast
+
 import numpy as np
 from stable_baselines3 import DQN
 from stable_baselines3.common.callbacks import BaseCallback
@@ -5,38 +7,41 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import (X_TIMESTEPS, load_results, ts2xy)
 
 import wandb
-from metareasoning_env import MetareasoningEnv
+from metareasoning_env import MetareasoningEnv, EXPANSION_STRATEGY_MAP
 
 PROJECT = 'metareasoning-for-state-abstractions'
 CONFIG = {
     'policy_type': 'MlpPolicy',
     'total_timesteps': 1000
 }
+
 LOGGING_DIRECTORY = 'logs'
-INFO_KEYWORDS = ('ground_state', 'abstract_state', 'action')
+INFO_KEYWORDS = ('ground_state', 'abstract_state', 'decisions')
+
+REWARD_EPISODE_WINDOW = 1
+ACTION_EPISODE_WINDOW = 10
+
+MODEL_DIRECTORY = 'models'
+MODEL_FILE = 'dqn-reference-3'
+MODEL_PATH = '{}/{}'.format(MODEL_DIRECTORY, MODEL_FILE)
 
 
 def get_mean_reward(y):
-    return np.mean(y[-100:])
-
-
-def get_isolated_mean_rewards(results):
-    isolated_mean_rewards = [[], []]
-
-    for _, row in results.iterrows():
-        isolated_mean_rewards[int(row['action'])].append(row['r'])
-
-    return [np.mean(isolated_mean_rewards[0]), np.mean(isolated_mean_rewards[1])]
+    return np.mean(y[-REWARD_EPISODE_WINDOW:])
 
 
 def get_action_probabilities(results):
-    actions = (results.loc[:, 'action'].values)[-100:]
+    action_trajectories = (results.loc[:, 'decisions'].values)[-ACTION_EPISODE_WINDOW:]
 
-    action_frequencies = [0, 0]
-    for action in actions:
-        action_frequencies[action] += 1
+    action_frequencies = {expansion_strategy: 0 for expansion_strategy in EXPANSION_STRATEGY_MAP.values()}
+    for action_trajectory in action_trajectories:
+        interpretted_action_trajectory = ast.literal_eval(action_trajectory)
+        for action in interpretted_action_trajectory:
+            action_frequencies[action] += 1
 
-    return [action_frequency / len(actions) for action_frequency in action_frequencies]
+    total_count = sum(action_frequencies.values())
+
+    return {expansion_strategy: action_frequencies[expansion_strategy] / total_count for expansion_strategy in action_frequencies.keys()}
 
 
 class WandbCallback(BaseCallback):
@@ -58,15 +63,12 @@ class WandbCallback(BaseCallback):
 
         if len(x) > 0:
             mean_reward = get_mean_reward(y)
-            isolated_mean_rewards = get_isolated_mean_rewards(results)
             action_probabilities = get_action_probabilities(results)
 
             wandb.log({
                 'Training/Reward': mean_reward,
-                'Training/Reward_Naive_Only': isolated_mean_rewards[0],
-                'Training/Reward_Proactive_Only': isolated_mean_rewards[1],
-                'Training/Naive': action_probabilities[0],
-                'Training/Proactive': action_probabilities[1]
+                'Training/Naive': action_probabilities['NAIVE'],
+                'Training/Proactive': action_probabilities['PROACTIVE']
             })
 
         return True
@@ -83,7 +85,7 @@ def main():
         total_timesteps=CONFIG['total_timesteps'],
         callback=WandbCallback(PROJECT, CONFIG, LOGGING_DIRECTORY)
     )
-    model.save("weights/dqn")
+    model.save(MODEL_PATH)
 
 
 if __name__ == '__main__':
