@@ -6,7 +6,7 @@ from stable_baselines3 import DQN
 from metareasoning_env import EXPANSION_STRATEGY_MAP, MetareasoningEnv
 
 MODEL_DIRECTORY = 'models'
-MODEL_FILE = 'dqn-reference-2'
+MODEL_FILE = 'dqn-reference-3'
 MODEL_PATH = '{}/{}'.format(MODEL_DIRECTORY, MODEL_FILE)
 
 # TODO Make this consistent across files
@@ -66,7 +66,7 @@ def main():
 
     done = False
     while not done:
-        action, _ = model.predict(observation)
+        action, _ = model.predict(observation, deterministic=False)
 
         observation, reward, done, info = env.step(int(action))
 
