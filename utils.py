@@ -93,6 +93,7 @@ def get_partitions(l, num_partitions):
     return [l[i:i + num_partitions] for i in range(0, len(l), num_partitions)]
 
 
+# TODO Fix this function
 def get_computation_time(state_space_size, action_space_size, scale):
     operations = (state_space_size ** 2) * action_space_size
     return scale * operations
@@ -102,6 +103,7 @@ def get_intrinisic_value(quality, alpha):
     return alpha * quality
 
 
+# TODO Add exponential cost of time
 def get_cost_of_time(time, beta):
     return beta * time
 

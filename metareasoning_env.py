@@ -50,6 +50,22 @@ REWARD_TYPE = 'SINGLE_DECISION_POINT_GROUND_STATE'
 
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
+# SAMER > JUSTIN
+# TODO Add new features (like kSR)
+# TODO Verify/fix the current features
+
+# JUSTIN < SAMER
+# TODO Pick a neural network size
+# TODO Select a number of episodes
+# TODO Investigate how often we train in steps
+# TODO Verify parameters (learning rate, exploration, and so on)
+
+# JUSTIN === SAMER
+# TODO Confirm result reporting
+
+# SIDE BURNER
+# TODO Add greedy exapnsion strategy
+# TODO Update quality estimate
 
 class MetareasoningEnv(gym.Env):
 
@@ -279,7 +295,9 @@ class MetareasoningEnv(gym.Env):
         ])
     
     def __get_reward(self):
-        return utils.get_time_dependent_utility(self.current_quality, self.current_computation_time, ALPHA, BETA) - utils.get_time_dependent_utility(self.previous_quality, self.previous_computation_time, ALPHA, BETA)
+        current_time_dependent_utility = utils.get_time_dependent_utility(self.current_quality, self.current_computation_time, ALPHA, BETA)
+        previous_time_dependent_utility = utils.get_time_dependent_utility(self.previous_quality, self.previous_computation_time, ALPHA, BETA)
+        return current_time_dependent_utility - previous_time_dependent_utility 
 
     def __get_done(self):
         return self.current_step > HORIZON
