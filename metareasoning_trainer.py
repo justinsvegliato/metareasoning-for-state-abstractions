@@ -11,6 +11,10 @@ from stable_baselines.deepq.policies import FeedForwardPolicy
 import wandb
 from metareasoning_env import EXPANSION_STRATEGY_MAP, MetareasoningEnv
 
+# TODO Confirm heatmap results
+# TODO Confirm wandb results
+# TODO Confirm wandb with exploration = 0.1
+
 PROJECT = 'metareasoning-for-state-abstractions'
 CONFIG = {
     # The total number of time steps [Default = None]
@@ -33,7 +37,7 @@ CONFIG = {
     'gradient_steps': 1,
     # The number of steps before the target network is updated [Default = 10000]
     'target_update_interval': 500,
-    # The fraction of episodes over which the exploration probability is reduced [Default = 0.1]
+    # The fraction of steps over which the exploration probability is reduced [Default = 0.1]
     'exploration_fraction': 0.1,
     # The initial exploration probability [Default = 1.0]
     'exploration_initial_eps': 1.0,
