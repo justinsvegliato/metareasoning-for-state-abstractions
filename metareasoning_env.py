@@ -1,5 +1,5 @@
-import math
 import logging
+import math
 import random
 import statistics
 
@@ -27,7 +27,7 @@ ABSTRACT_STATE_HEIGHT = 3
 EXPAND_POINTS_OF_INTEREST = True
 GAMMA = 0.99
 
-TRAVERSES = 2
+TRAVERSES = 100
 HORIZON = TRAVERSES * STATE_WIDTH
 
 ACTION_MAP = {
@@ -40,20 +40,36 @@ ACTION_MAP = {
 EXPANSION_STRATEGY_MAP = {
     0: 'NAIVE',
     1: 'PROACTIVE'
+    # 0: 'NAIVE',
+    # 1: 'GREEDY',
+    # 1: 'PROACTIVE'
 }
 
 ALPHA = 100
 BETA = 0
 SCALE = 0.000001
 
-# REWARD_TYPE = 'INITIAL_GROUND_STATE'
 REWARD_TYPE = 'SINGLE_DECISION_POINT_GROUND_STATE'
-# REWARD_TYPE = 'ALL_DECISION_POINT_GROUND_STATES'
 
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
+# SAMER > JUSTIN
+# TODO Add new features (like kSR)
+# TODO Verify/fix the current features
 
-# TODO Vectorize as many operations as possible
+# JUSTIN === SAMER
+# TODO Confirm result reporting
+
+# JUSTIN
+# TODO Consolidate configuration
+# TODO Look into hardware
+# TODO Add maximum reward normalization
+# TODO Add simulated qualities
+
+# SIDE BURNER
+# TODO Add greedy exapnsion strategy
+# TODO Update quality estimate
+
 class MetareasoningEnv(gym.Env):
 
     def __init__(self, ):
@@ -90,8 +106,9 @@ class MetareasoningEnv(gym.Env):
 
         self.decision_point_ground_state = None
         self.decision_point_ground_states = []
+        self.decision_point_abstract_state = None
 
-        self.computations = []
+        self.decisions = []
 
         self.current_ground_state = None
         self.current_abstract_state = None
@@ -125,7 +142,10 @@ class MetareasoningEnv(gym.Env):
 
         self.decision_point_ground_state = self.current_ground_state
         self.decision_point_ground_states = new_solved_ground_states
-        self.computations.append({
+        self.decision_point_abstract_state = self.current_abstract_state
+
+        self.decisions.append({
+            'expansion_strategy': EXPANSION_STRATEGY_MAP[action], 
             'state_space_size': solution['state_space_size'],
             'action_space_size': solution['action_space_size']
         })
@@ -154,7 +174,7 @@ class MetareasoningEnv(gym.Env):
         self.current_expansion_ratio = self.__get_current_expansion_ratio()
         self.current_reward_distance = self.__get_current_reward_distance()
 
-        return self.__get_observation(), self.__get_reward(), self.__get_done(), self.__get_info(action)
+        return self.__get_observation(), self.__get_reward(), self.__get_done(), self.__get_info(self.decision_point_ground_state, self.decision_point_abstract_state, self.decisions)
 
     def reset(self):
         logging.info("ENVIRONMENT RESET")
@@ -184,8 +204,9 @@ class MetareasoningEnv(gym.Env):
 
         self.decision_point_ground_state = self.initial_ground_state
         self.decision_point_ground_states = [self.initial_ground_state]
+        self.decision_point_abstract_state = None
 
-        self.computations = []
+        self.decisions = []
 
         self.current_ground_state = self.initial_ground_state
         self.current_abstract_state = self.abstract_mdp.get_abstract_state(self.current_ground_state)
@@ -277,13 +298,19 @@ class MetareasoningEnv(gym.Env):
         ])
     
     def __get_reward(self):
-        return utils.get_time_dependent_utility(self.current_quality, self.current_computation_time, ALPHA, BETA) - utils.get_time_dependent_utility(self.previous_quality, self.previous_computation_time, ALPHA, BETA)
+        current_time_dependent_utility = utils.get_time_dependent_utility(self.current_quality, self.current_computation_time, ALPHA, BETA)
+        previous_time_dependent_utility = utils.get_time_dependent_utility(self.previous_quality, self.previous_computation_time, ALPHA, BETA)
+        return current_time_dependent_utility - previous_time_dependent_utility 
 
     def __get_done(self):
         return self.current_step > HORIZON
 
-    def __get_info(self, action):
-        return {'action': action}
+    def __get_info(self, ground_state, abstract_state, decisions):
+        return {
+            'ground_state': ground_state,
+            'abstract_state': abstract_state,
+            'decisions': [decision['expansion_strategy'] for decision in decisions]
+        }
 
     def closest_goal(self):
         current_location, current_weather_status = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
@@ -370,6 +397,7 @@ def main():
             print("Reward:", reward)
             print("Done:", done)
             pure_naive_rewards.append(reward)
+
 
         env = MetareasoningEnv()
         observation = env.reset()

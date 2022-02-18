@@ -2,6 +2,7 @@ import random
 
 # TODO Clean up this file because these functions are esoteric as hell
 
+
 def get_policy(values, mdp, gamma):
     policy = {}
 
@@ -39,6 +40,7 @@ def get_values(values, ground_mdp, abstract_mdp):
             ground_values[ground_state] = values[abstract_state]
 
     return ground_values
+
 
 def get_ground_policy(values, ground_mdp, abstract_mdp, ground_states, abstract_state, gamma):
     policy = {}
@@ -91,6 +93,7 @@ def get_partitions(l, num_partitions):
     return [l[i:i + num_partitions] for i in range(0, len(l), num_partitions)]
 
 
+# TODO Fix this function
 def get_computation_time(state_space_size, action_space_size, scale):
     operations = (state_space_size ** 2) * action_space_size
     return scale * operations
@@ -100,6 +103,7 @@ def get_intrinisic_value(quality, alpha):
     return alpha * quality
 
 
+# TODO Add exponential cost of time
 def get_cost_of_time(time, beta):
     return beta * time
 
