@@ -13,8 +13,38 @@ from metareasoning_env import EXPANSION_STRATEGY_MAP, MetareasoningEnv
 
 PROJECT = 'metareasoning-for-state-abstractions'
 CONFIG = {
-    'policy_type': 'MlpPolicy',
-    'total_timesteps': 5000
+    # The total number of time steps [Default = None]
+    'total_timesteps': 5000,
+    # The learning rate [Default = 0.0001]
+    'learning_rate': 0.0001,
+    # The size of the experience buffer [Default = 1000000]
+    'buffer_size': 1000000,
+    # The number of steps before gradient updates start [Default = 50000]
+    'learning_starts': 300,
+    # The minibatch size of each gradient update [Default = 32]
+    'batch_size': 32,
+    # The hard/soft update coefficient (1 for hard updating; 0 for soft updating) [Default = 1]
+    'tau': 1.0,
+    # The discount factor [Default = 0.99]
+    'gamma': 0.99,
+    # The number of steps before each gradient update [Default = 4]
+    'train_freq': 4,
+    # The number of gradient steps within each gradient update [Default = 1]
+    'gradient_steps': 1,
+    # The number of steps before the target network is updated [Default = 10000]
+    'target_update_interval': 500,
+    # The fraction of episodes over which the exploration probability is reduced [Default = 0.1]
+    'exploration_fraction': 0.1,
+    # The initial exploration probability [Default = 1.0]
+    'exploration_initial_eps': 1.0,
+    # The final exploration probability [Default = 0.05]
+    'exploration_final_eps': 0.05,
+    # The maximum value for clipping the gradient in each gradient update [Default = 10]
+    'max_grad_norm': 10,
+    # The verbosity level [Default = 0]
+    'verbose': 1,
+    # The seed for pseudorandom number generation [Default = None]
+    'seed': None
 }
 
 LOGGING_DIRECTORY = 'logs'
@@ -24,19 +54,8 @@ REWARD_EPISODE_WINDOW = 1
 ACTION_EPISODE_WINDOW = 10
 
 MODEL_DIRECTORY = 'models'
-MODEL_FILE = 'dqn-reference-3'
+MODEL_FILE = 'dqn-model-4'
 MODEL_PATH = '{}/{}'.format(MODEL_DIRECTORY, MODEL_FILE)
-
-
-class CustomDQNPolicy(FeedForwardPolicy):
-    def __init__(self, *args, **kwargs):
-        super(CustomDQNPolicy, self).__init__(*args, **kwargs,
-            layers=[64, 32], # The layers of the neural network
-            act_fun=tf.nn.relu, # The activation function of the neural network
-            layer_norm=False, # The layer normalization flat
-            dueling=True, # The dueling parameter that doubles the neural network for action score comparisons
-            feature_extraction="mlp" # The feature extraction type
-        )
 
 
 def get_mean_reward(y):
@@ -55,6 +74,17 @@ def get_action_probabilities(results):
     total_count = sum(action_frequencies.values())
 
     return {expansion_strategy: action_frequencies[expansion_strategy] / total_count for expansion_strategy in action_frequencies.keys()}
+
+
+class CustomDQNPolicy(FeedForwardPolicy):
+    def __init__(self, *args, **kwargs):
+        super(CustomDQNPolicy, self).__init__(*args, **kwargs,
+            layers=[64, 32], # The layers of the neural network
+            act_fun=tf.nn.relu, # The activation function of the neural network
+            layer_norm=False, # The layer normalization flat
+            dueling=True, # The dueling parameter that doubles the neural network for action score comparisons
+            feature_extraction="mlp" # The feature extraction type
+        )
 
 
 class WandbCallback(BaseCallback):
@@ -94,21 +124,21 @@ def main():
     env = Monitor(MetareasoningEnv(), LOGGING_DIRECTORY, info_keywords=INFO_KEYWORDS)
     
     model = DQN(CustomDQNPolicy, env,
-        learning_rate=0.0001, # The learning rate
-        buffer_size=1000000, # The size of the experience buffer
-        learning_starts=50000, # The number of steps before gradient updates start
-        batch_size=32, # The minibatch size of each gradient update
-        tau=1.0, # The update coefficient between 1 and 0 (1 for hard updating; 0 for soft updating)
-        gamma=0.99, # The discount factor
-        train_freq=4, # The number of steps before each gradient update
-        gradient_steps=1, # The number of gradient steps within each gradient update
-        target_update_interval=10000, # The number of steps before the target network is updated
-        exploration_fraction=0.1, # The fraction of episodes over which the exploration probability is reduced
-        exploration_initial_eps=1.0, # The initial exploration probability
-        exploration_final_eps=0.05, # The final exploration probability
-        max_grad_norm=10, # The maximum value for clipping the gradient in each gradient update
-        verbose=1, # The verbosity level
-        seed=None # The seed for pseudorandom number generation
+        learning_rate=CONFIG['learning_rate'],
+        buffer_size=CONFIG['buffer_size'],
+        learning_starts=CONFIG['learning_starts'],
+        batch_size=CONFIG['batch_size'],
+        tau=CONFIG['tau'],
+        gamma=CONFIG['gamma'],
+        train_freq=CONFIG['train_freq'],
+        gradient_steps=CONFIG['gradient_steps'],
+        target_update_interval=CONFIG['target_update_interval'],
+        exploration_fraction=CONFIG['exploration_fraction'],
+        exploration_initial_eps=CONFIG['exploration_initial_eps'],
+        exploration_final_eps=CONFIG['exploration_final_eps'],
+        max_grad_norm=CONFIG['max_grad_norm'],
+        verbose=CONFIG['verbose'],
+        seed=CONFIG['seed']
     )
 
     model.learn(
