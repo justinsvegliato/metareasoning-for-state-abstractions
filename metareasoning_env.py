@@ -40,6 +40,9 @@ ACTION_MAP = {
 EXPANSION_STRATEGY_MAP = {
     0: 'NAIVE',
     1: 'PROACTIVE'
+    # 0: 'NAIVE',
+    # 1: 'GREEDY',
+    # 1: 'PROACTIVE'
 }
 
 ALPHA = 100
@@ -53,12 +56,6 @@ logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelna
 # SAMER > JUSTIN
 # TODO Add new features (like kSR)
 # TODO Verify/fix the current features
-
-# JUSTIN < SAMER
-# TODO Pick a neural network size
-# TODO Select a number of episodes
-# TODO Investigate how often we train in steps
-# TODO Verify parameters (learning rate, exploration, and so on)
 
 # JUSTIN === SAMER
 # TODO Confirm result reporting
