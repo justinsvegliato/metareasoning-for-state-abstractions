@@ -352,29 +352,66 @@ class MetareasoningEnv(gym.Env):
         return kSR_prob 
  
 def main():
-    random.seed(50)
+    pure_naive_rewards = []
+    pure_proactive_rewards = []
+    hard_kSR_rewards = []
+    
+    for i in range(100): # number of seeds
+        random.seed(i)
 
-    env = MetareasoningEnv()
-
-    observation = env.reset()
-    print("Observation:", observation)
-
-    done = False
-    while not done:
-        action = 1
-        prob_kSR = env.is_probably_kSR(ABSTRACT_STATE_WIDTH, 100, 100)
-        print("SOFT")
-        print(prob_kSR)
-        kSR = env.is_kSR()
-        print("HARD")
-        print(kSR)
-        if kSR:
-            action = 0
-        observation, reward, done, _ = env.step(action)
-        #observation, reward, done, _ = env.step(1)
+        env = MetareasoningEnv()
+        observation = env.reset()
         print("Observation:", observation)
-        print("Reward:", reward)
-        print("Done:", done)
+        done = False
+        while not done:
+            action = 0
+            observation, reward, done, _ = env.step(action)
+            print("Observation:", observation)
+            print("Reward:", reward)
+            print("Done:", done)
+            pure_naive_rewards.append(reward)
+
+        env = MetareasoningEnv()
+        observation = env.reset()
+        print("Observation:", observation)
+        done = False
+        while not done:
+            action = 1
+            observation, reward, done, _ = env.step(action)
+            print("Observation:", observation)
+            print("Reward:", reward)
+            print("Done:", done)
+            pure_proactive_rewards.append(reward)
+
+
+        env = MetareasoningEnv()
+        observation = env.reset()
+        print("Observation:", observation)
+        done = False
+        while not done:
+            action = 1
+            #prob_kSR = env.is_probably_kSR(ABSTRACT_STATE_WIDTH, 100, 100)
+            #print("SOFT")
+            #print(prob_kSR)
+            kSR = env.is_kSR()
+            #print("HARD")
+            #print(kSR)
+            if kSR:
+                action = 0
+            observation, reward, done, _ = env.step(action)
+            print("Observation:", observation)
+            print("Reward:", reward)
+            print("Done:", done)
+            hard_kSR_rewards.append(reward)
+
+
+    print("NAIVE")
+    print(sum(pure_naive_rewards))
+    print("PROACTIVE")
+    print(sum(pure_proactive_rewards))
+    print("HARD kSR")
+    print(sum(hard_kSR_rewards))
+
 
 
 if __name__ == '__main__':
