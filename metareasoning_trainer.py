@@ -79,11 +79,11 @@ def get_action_probabilities(results):
 class CustomDQNPolicy(FeedForwardPolicy):
     def __init__(self, *args, **kwargs):
         super(CustomDQNPolicy, self).__init__(*args, **kwargs,
-            layers=[64, 32], # The layers of the neural network
-            act_fun=tf.nn.relu, # The activation function of the neural network
-            layer_norm=False, # The layer normalization flat
-            dueling=True, # The dueling parameter that doubles the neural network for action score comparisons
-            feature_extraction="mlp" # The feature extraction type
+            layers=[64, 32], # The layers of the neural network [Default = [64, 64]]
+            act_fun=tf.nn.relu, # The activation function of the neural network [Default = tf.nn.relu]
+            layer_norm=False, # The layer normalization flat [Default = False]
+            dueling=True, # The dueling parameter that doubles the neural network for action score comparisons [Default = True]
+            feature_extraction="mlp" # The feature extraction type [Default = cnn]
         )
 
 
