@@ -9,7 +9,7 @@ MODEL_DIRECTORY = 'models'
 MODEL_FILE = 'dqn-model'
 MODEL_PATH = '{}/{}'.format(MODEL_DIRECTORY, MODEL_FILE)
 
-DETERMINISTIC = True
+DETERMINISTIC = False
 ACTION_FOCUS = 'PROACTIVE'
 
 # TODO Make this consistent across files

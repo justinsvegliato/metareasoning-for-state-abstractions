@@ -34,7 +34,7 @@ TRAVERSES = 20
 HORIZON = TRAVERSES * STATE_WIDTH
 
 # Time-Dependent Utility Settings
-ALPHA = 100
+ALPHA = 3
 BETA = 0
 SCALE = 0.000001
 
@@ -62,12 +62,6 @@ logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelna
 # SAMER > JUSTIN
 # TODO Add new features (like kSR)
 # TODO Verify/fix the current features
-
-# JUSTIN === SAMER
-# TODO Confirm result reporting
-
-# SIDE BURNER
-# TODO Update quality estimate
 
 class MetareasoningEnv(gym.Env):
 

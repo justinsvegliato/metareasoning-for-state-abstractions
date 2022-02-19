@@ -28,13 +28,13 @@ CONFIG = {
     # The number of steps before gradient updates start [Default = 50000]
     'learning_starts': 300,
     # The minibatch size of each gradient update [Default = 32]
-    'batch_size': 32,
+    'batch_size': 64,
     # The hard/soft update coefficient (1 for hard updating; 0 for soft updating) [Default = 1]
     'tau': 1.0,
     # The discount factor [Default = 0.99]
     'gamma': 0.99,
     # The number of steps before each gradient update [Default = 4]
-    'train_freq': 4,
+    'train_freq': 1,
     # The number of gradient steps within each gradient update [Default = 1]
     'gradient_steps': 1,
     # The number of steps before the target network is updated [Default = 10000]
