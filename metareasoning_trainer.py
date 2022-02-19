@@ -13,8 +13,6 @@ from torch import nn
 import wandb
 from metareasoning_env import EXPANSION_STRATEGY_MAP, MetareasoningEnv
 
-# TODO Confirm heatmap results
-# TODO Confirm wandb results
 # TODO Confirm wandb with exploration = 0.1
 
 PROJECT = 'metareasoning-for-state-abstractions'

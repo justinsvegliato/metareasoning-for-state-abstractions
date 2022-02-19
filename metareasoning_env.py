@@ -66,11 +66,6 @@ logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelna
 # JUSTIN === SAMER
 # TODO Confirm result reporting
 
-# JUSTIN
-# TODO Look into hardware
-# TODO Add maximum reward normalization
-# TODO Add simulated qualities
-
 # SIDE BURNER
 # TODO Update quality estimate
 
