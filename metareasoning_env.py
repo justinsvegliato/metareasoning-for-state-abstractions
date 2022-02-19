@@ -15,42 +15,47 @@ import utils
 from earth_observation_abstract_mdp import EarthObservationAbstractMDP
 from earth_observation_mdp import EarthObservationMDP
 
+# Ground MDP Settings
 STATE_WIDTH = 12
 STATE_HEIGHT = 6
 SIZE = (STATE_HEIGHT, STATE_WIDTH)
 POINTS_OF_INTEREST = 2
 
+# Abstract MDP Settings
 ABSTRACTION = 'MEAN'
 ABSTRACT_STATE_WIDTH = 3
 ABSTRACT_STATE_HEIGHT = 3
 
-EXPAND_POINTS_OF_INTEREST = True
+# Solution Method Settings
 GAMMA = 0.99
 
-TRAVERSES = 100
+# Simulator Settings
+TRAVERSES = 2
 HORIZON = TRAVERSES * STATE_WIDTH
 
+# Time-Dependent Utility Settings
+ALPHA = 100
+BETA = 0
+SCALE = 0.000001
+
+# Quality Calculation Settings
+VALUE_FOCUS = 'SINGLE_DECISION_POINT_GROUND_STATE'
+VALUE_DETERMINATION = 'EXACT'
+SIMULATIONS = 1000
+
+# Helpul Mappings
 ACTION_MAP = {
     'STAY': 0,
     'NORTH': 1,
     'SOUTH': 2,
     'IMAGE': 3
 }
-
 EXPANSION_STRATEGY_MAP = {
     0: 'NAIVE',
     1: 'PROACTIVE'
-    # 0: 'NAIVE',
-    # 1: 'GREEDY',
-    # 1: 'PROACTIVE'
 }
 
-ALPHA = 100
-BETA = 0
-SCALE = 0.000001
-
-REWARD_TYPE = 'SINGLE_DECISION_POINT_GROUND_STATE'
-
+# Logger Initialization
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
 # SAMER > JUSTIN
@@ -61,13 +66,11 @@ logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelna
 # TODO Confirm result reporting
 
 # JUSTIN
-# TODO Consolidate configuration
 # TODO Look into hardware
 # TODO Add maximum reward normalization
 # TODO Add simulated qualities
 
 # SIDE BURNER
-# TODO Add greedy exapnsion strategy
 # TODO Update quality estimate
 
 class MetareasoningEnv(gym.Env):
@@ -107,7 +110,6 @@ class MetareasoningEnv(gym.Env):
         self.decision_point_ground_state = None
         self.decision_point_ground_states = []
         self.decision_point_abstract_state = None
-
         self.decisions = []
 
         self.current_ground_state = None
@@ -138,17 +140,16 @@ class MetareasoningEnv(gym.Env):
             self.ground_policy_cache[new_solved_ground_state] = new_solved_ground_policy[new_solved_ground_state]
         logging.info("-- Updated the ground policy cache for the new abstract state: [%s]", self.current_abstract_state)
 
-        logging.info("SIMULATION")
-
         self.decision_point_ground_state = self.current_ground_state
         self.decision_point_ground_states = new_solved_ground_states
         self.decision_point_abstract_state = self.current_abstract_state
-
         self.decisions.append({
             'expansion_strategy': EXPANSION_STRATEGY_MAP[action], 
             'state_space_size': solution['state_space_size'],
             'action_space_size': solution['action_space_size']
         })
+
+        logging.info("SIMULATION")
 
         if self.current_ground_state not in self.solved_ground_states:
             logging.info(">>>> Encountered a ground state not in the solved ground states")
@@ -205,7 +206,6 @@ class MetareasoningEnv(gym.Env):
         self.decision_point_ground_state = self.initial_ground_state
         self.decision_point_ground_states = [self.initial_ground_state]
         self.decision_point_abstract_state = None
-
         self.decisions = []
 
         self.current_ground_state = self.initial_ground_state
@@ -227,7 +227,7 @@ class MetareasoningEnv(gym.Env):
 
         return self.__get_observation()
 
-    def __get_values(self):
+    def __get_exact_values(self):
         states = self.ground_memory_mdp.states
         actions = self.ground_memory_mdp.actions
         rewards = self.ground_memory_mdp.rewards
@@ -250,27 +250,47 @@ class MetareasoningEnv(gym.Env):
 
         return {state: values[state] for state in states}
 
+    def __get_approximate_values(self, states):
+        monte_carlo_value_container = {state: [] for state in states}
+
+        for state in states:
+            for _ in range(SIMULATIONS):
+                monte_carlo_value = 0
+
+                simulated_state = state
+                for _ in range(HORIZON):
+                    simulated_action = self.ground_policy_cache[simulated_state]
+                    monte_carlo_value += self.ground_mdp.reward_function(simulated_state, simulated_action)
+                    simulated_state = utils.get_successor_state(simulated_state, simulated_action, self.ground_mdp)
+                
+                monte_carlo_value_container[state].append(monte_carlo_value)
+
+        return {state: statistics.mean(monte_carlo_value_container[state]) for state in states}
+
     def __get_current_quality(self):
-        if REWARD_TYPE == 'INITIAL_GROUND_STATE':
-            return self.__get_current_quality_from_initial_ground_state()
+        if VALUE_FOCUS == 'INITIAL_GROUND_STATE':
+            values = self.__get_exact_values() if VALUE_DETERMINATION == 'EXACT' else self.__get_approximate_values([self.initial_ground_state])
+            return values[self.initial_ground_state]
 
-        if REWARD_TYPE == 'SINGLE_DECISION_POINT_GROUND_STATE':
-            return self.__get_current_quality_from_decision_point_ground_state()
+        if VALUE_FOCUS == 'SINGLE_DECISION_POINT_GROUND_STATE':
+            values = self.__get_exact_values() if VALUE_DETERMINATION == 'EXACT' else self.__get_approximate_values([self.decision_point_ground_state])
+            return values[self.decision_point_ground_state]
 
-        if REWARD_TYPE == 'ALL_DECISION_POINT_GROUND_STATES':
-            return self.__get_current_quality_from_decision_point_ground_states()
+        if VALUE_FOCUS == 'ALL_DECISION_POINT_GROUND_STATES':
+            values = self.__get_exact_values() if VALUE_DETERMINATION == 'EXACT' else self.__get_approximate_values(self.decision_point_ground_states)
+            return statistics.mean([values[decision_point_ground_state] for decision_point_ground_state in self.decision_point_ground_states])
 
-    def __get_current_quality_from_initial_ground_state(self):
-        values = self.__get_values()
-        return values[self.initial_ground_state]
+    def __get_maximum_ground_reward(self):
+        states = self.ground_mdp.states()
+        actions = self.ground_mdp.actions()
 
-    def __get_current_quality_from_decision_point_ground_state(self):
-        values = self.__get_values()
-        return values[self.decision_point_ground_state]
+        maximum_immediate_reward = float('-inf')
+        for state in states:
+            for action in actions:
+                immediate_reward = self.ground_mdp.reward_function(state, action)
+                maximum_immediate_reward = max(maximum_immediate_reward, immediate_reward)
 
-    def __get_current_quality_from_decision_point_ground_states(self):
-        values = self.__get_values()        
-        return statistics.mean([values[decision_point_ground_state] for decision_point_ground_state in self.decision_point_ground_states])
+        return maximum_immediate_reward
 
     def __get_current_expansion_ratio(self):
         return self.current_expansions / len(self.abstract_mdp.states())
@@ -370,8 +390,6 @@ class MetareasoningEnv(gym.Env):
             if goal_found:
                 reachable[s] = 1
           
-        #print(reachable) 
-        #kSR_prob = sum(reachable)            
         kSR_prob = float(sum(reachable) / len(reachable))            
         if min_dist < k:
             kSR_prob = "too close"
