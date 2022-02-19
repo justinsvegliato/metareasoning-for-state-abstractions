@@ -5,8 +5,7 @@ import torch as th
 from stable_baselines3 import DQN
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.results_plotter import (X_TIMESTEPS,
-                                                      load_results, ts2xy)
+from stable_baselines3.common.results_plotter import (X_TIMESTEPS, load_results, ts2xy)
 from stable_baselines3.dqn.policies import DQNPolicy
 from torch import nn
 
@@ -16,6 +15,9 @@ from metareasoning_env import EXPANSION_STRATEGY_MAP, MetareasoningEnv
 # TODO Confirm wandb with exploration = 0.1
 
 PROJECT = 'metareasoning-for-state-abstractions'
+LOGGING_DIRECTORY = 'logs'
+INFO_KEYWORDS = ('ground_state', 'abstract_state', 'decisions')
+
 CONFIG = {
     # The total number of time steps [Default = None]
     'total_timesteps': 5000,
@@ -50,9 +52,6 @@ CONFIG = {
     # The seed for pseudorandom number generation [Default = None]
     'seed': None
 }
-
-LOGGING_DIRECTORY = 'logs'
-INFO_KEYWORDS = ('ground_state', 'abstract_state', 'decisions')
 
 REWARD_EPISODE_WINDOW = 1
 ACTION_EPISODE_WINDOW = 10
@@ -120,16 +119,16 @@ class CustomDQNPolicy(DQNPolicy):
             net_arch=[64, 32],
             # The activation function of the neural network [Default = nn.ReLU]
             activation_fn=nn.ReLU,
-            # The layer normalization that divides by 255 for images [Default = False]
+            # The normalization layer that divides by 255 for images [Default = False]
             normalize_images=False,
-            # The optimizer to use [Default = th.optim.Adam]
+            # The optimizer [Default = th.optim.Adam]
             optimizer_class=th.optim.Adam
         )
 
 
 def main():
     env = Monitor(MetareasoningEnv(), LOGGING_DIRECTORY, info_keywords=INFO_KEYWORDS)
-    
+
     model = DQN(CustomDQNPolicy, env,
         learning_rate=CONFIG['learning_rate'],
         buffer_size=CONFIG['buffer_size'],
