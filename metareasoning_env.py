@@ -38,9 +38,10 @@ ALPHA = 100
 BETA = 0
 SCALE = 0.000001
 
-# Quality Calculation Settings
+# Policy Quality Calculation Settings
 VALUE_FOCUS = 'SINGLE_DECISION_POINT_GROUND_STATE'
 VALUE_DETERMINATION = 'EXACT'
+VALUE_NORMALIZATION = False
 SIMULATIONS = 1000
 
 # Helpul Mappings
@@ -123,6 +124,9 @@ class MetareasoningEnv(gym.Env):
         self.current_quality = None
         self.current_expansion_ratio = None
         self.current_reward_distance = None
+
+        if VALUE_NORMALIZATION:
+            self.value_normalizer = self.__get_maximum_value()
 
     def step(self, action):
         logging.info("ENVIRONMENT STEP [%d, %s, %s]", self.current_step, EXPANSION_STRATEGY_MAP[action], self.current_abstract_state)
@@ -267,30 +271,38 @@ class MetareasoningEnv(gym.Env):
 
         return {state: statistics.mean(monte_carlo_value_container[state]) for state in states}
 
-    def __get_current_quality(self):
-        if VALUE_FOCUS == 'INITIAL_GROUND_STATE':
-            values = self.__get_exact_values() if VALUE_DETERMINATION == 'EXACT' else self.__get_approximate_values([self.initial_ground_state])
-            return values[self.initial_ground_state]
-
-        if VALUE_FOCUS == 'SINGLE_DECISION_POINT_GROUND_STATE':
-            values = self.__get_exact_values() if VALUE_DETERMINATION == 'EXACT' else self.__get_approximate_values([self.decision_point_ground_state])
-            return values[self.decision_point_ground_state]
-
-        if VALUE_FOCUS == 'ALL_DECISION_POINT_GROUND_STATES':
-            values = self.__get_exact_values() if VALUE_DETERMINATION == 'EXACT' else self.__get_approximate_values(self.decision_point_ground_states)
-            return statistics.mean([values[decision_point_ground_state] for decision_point_ground_state in self.decision_point_ground_states])
-
-    def __get_maximum_ground_reward(self):
+    # TODO Improve this with a given state and its reachability
+    # TODO Improve this with the expected point of interest weather
+    def __get_maximum_value(self):
         states = self.ground_mdp.states()
         actions = self.ground_mdp.actions()
 
-        maximum_immediate_reward = float('-inf')
+        maximum_reward = float('-inf')
         for state in states:
             for action in actions:
-                immediate_reward = self.ground_mdp.reward_function(state, action)
-                maximum_immediate_reward = max(maximum_immediate_reward, immediate_reward)
+                reward = self.ground_mdp.reward_function(state, action)
+                maximum_reward = max(maximum_reward, reward)
 
-        return maximum_immediate_reward
+        maximum_photo_count = (HORIZON / STATE_WIDTH) * POINTS_OF_INTEREST
+
+        return maximum_reward * maximum_photo_count
+
+    def __get_current_quality(self):
+        current_quality = None
+
+        if VALUE_FOCUS == 'INITIAL_GROUND_STATE':
+            values = self.__get_exact_values() if VALUE_DETERMINATION == 'EXACT' else self.__get_approximate_values([self.initial_ground_state])
+            current_quality = values[self.initial_ground_state]
+
+        if VALUE_FOCUS == 'SINGLE_DECISION_POINT_GROUND_STATE':
+            values = self.__get_exact_values() if VALUE_DETERMINATION == 'EXACT' else self.__get_approximate_values([self.decision_point_ground_state])
+            current_quality = values[self.decision_point_ground_state]
+
+        if VALUE_FOCUS == 'ALL_DECISION_POINT_GROUND_STATES':
+            values = self.__get_exact_values() if VALUE_DETERMINATION == 'EXACT' else self.__get_approximate_values(self.decision_point_ground_states)
+            current_quality = statistics.mean([values[decision_point_ground_state] for decision_point_ground_state in self.decision_point_ground_states])
+
+        return current_quality / self.value_normalizer if VALUE_NORMALIZATION else current_quality
 
     def __get_current_expansion_ratio(self):
         return self.current_expansions / len(self.abstract_mdp.states())

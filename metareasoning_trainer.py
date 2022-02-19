@@ -1,12 +1,14 @@
 import ast
 
 import numpy as np
-import tensorflow as tf
+import torch as th
 from stable_baselines3 import DQN
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.results_plotter import (X_TIMESTEPS, load_results, ts2xy)
-from stable_baselines.deepq.policies import FeedForwardPolicy
+from stable_baselines3.common.results_plotter import (X_TIMESTEPS,
+                                                      load_results, ts2xy)
+from stable_baselines3.dqn.policies import DQNPolicy
+from torch import nn
 
 import wandb
 from metareasoning_env import EXPANSION_STRATEGY_MAP, MetareasoningEnv
@@ -80,22 +82,6 @@ def get_action_probabilities(results):
     return {expansion_strategy: action_frequencies[expansion_strategy] / total_count for expansion_strategy in action_frequencies.keys()}
 
 
-class CustomDQNPolicy(FeedForwardPolicy):
-    def __init__(self, *args, **kwargs):
-        super(CustomDQNPolicy, self).__init__(*args, **kwargs,
-            # The layers of the neural network [Default = [64, 64]]
-            layers=[64, 32],
-            # The activation function of the neural network [Default = tf.nn.relu]
-            act_fun=tf.nn.relu,
-            # The layer normalization flat [Default = False]
-            layer_norm=False,
-            # The dueling parameter that doubles the neural network for action score comparisons [Default = True]
-            dueling=True,
-            # The feature extraction type [Default = cnn]
-            feature_extraction="mlp"
-        )
-
-
 class WandbCallback(BaseCallback):
     def __init__(self, project, config, logging_directory):
         super(WandbCallback, self).__init__()
@@ -127,6 +113,20 @@ class WandbCallback(BaseCallback):
 
     def _on_training_end(self) -> None:
         self.run.finish()
+
+
+class CustomDQNPolicy(DQNPolicy):
+    def __init__(self, *args, **kwargs):
+        super(CustomDQNPolicy, self).__init__(*args, **kwargs,
+            # The layers of the neural network [Default = [64, 64]]
+            net_arch=[64, 32],
+            # The activation function of the neural network [Default = nn.ReLU]
+            activation_fn=nn.ReLU,
+            # The layer normalization that divides by 255 for images [Default = False]
+            normalize_images=False,
+            # The optimizer to use [Default = th.optim.Adam]
+            optimizer_class=th.optim.Adam
+        )
 
 
 def main():
