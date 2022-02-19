@@ -6,7 +6,7 @@ from stable_baselines3 import DQN
 from metareasoning_env import EXPANSION_STRATEGY_MAP, MetareasoningEnv
 
 MODEL_DIRECTORY = 'models'
-MODEL_FILE = 'dqn-reference-3'
+MODEL_FILE = 'dqn-model'
 MODEL_PATH = '{}/{}'.format(MODEL_DIRECTORY, MODEL_FILE)
 
 # TODO Make this consistent across files
