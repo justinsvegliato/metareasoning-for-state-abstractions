@@ -94,6 +94,7 @@ def get_partitions(l, num_partitions):
 
 
 # TODO Fix this function
+# TODO Confirm this function
 def get_computation_time(state_space_size, action_space_size, scale):
     operations = (state_space_size ** 2) * action_space_size
     return scale * operations
