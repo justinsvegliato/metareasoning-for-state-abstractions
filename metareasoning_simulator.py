@@ -6,15 +6,20 @@ from stable_baselines3 import DQN
 from metareasoning_env import EXPANSION_STRATEGY_MAP, MetareasoningEnv
 
 MODEL_DIRECTORY = 'models'
-MODEL_FILE = 'dqn-reference-3'
+MODEL_FILE = 'dqn-model'
 MODEL_PATH = '{}/{}'.format(MODEL_DIRECTORY, MODEL_FILE)
+
+DETERMINISTIC = False
+ACTION_FOCUS = 'PROACTIVE'
 
 # TODO Make this consistent across files
 ROWS = 2
 COLUMNS = 4
+WEATHER_STATUSES = 4
+REWARD_ACTION = 'IMAGE'
 
 
-def show_heatmap(env, decisions, action_focus='PROACTIVE'):
+def show_heatmap(env, decisions, action_focus):
     abstract_state_tracker = {}
     for abstract_state in env.abstract_mdp.states():
         abstract_state_tracker[abstract_state] = {}
@@ -34,22 +39,21 @@ def show_heatmap(env, decisions, action_focus='PROACTIVE'):
 
             location_index = row * COLUMNS + column
 
-            for weather_index in range(4):
+            for weather_index in range(WEATHER_STATUSES):
+                # TODO Verify this abstract state key
                 abstract_state = 'abstract_{}_{}'.format(location_index, weather_index)
 
                 count += abstract_state_tracker[abstract_state][action_focus] 
                 total_count += sum([abstract_state_tracker[abstract_state][action] for action in EXPANSION_STRATEGY_MAP.values()])
 
-                reward = env.abstract_mdp.reward_function(abstract_state, 'IMAGE')
+                reward = env.abstract_mdp.reward_function(abstract_state, REWARD_ACTION)
                 if reward > 0:
                     labels[row][column] = 'X'
 
             heatmap_matrix[row, column] = count / total_count if total_count > 0 else 0
 
     sns.set(font_scale=1.4)
-
     sns.heatmap(heatmap_matrix, vmin=0.0, vmax=1.0, annot=labels, square=True, linewidths=1.0, cbar_kws={"orientation": "horizontal"}, fmt='')
-    
     plt.show()
 
 
@@ -66,7 +70,7 @@ def main():
 
     done = False
     while not done:
-        action, _ = model.predict(observation, deterministic=False)
+        action, _ = model.predict(observation, deterministic=DETERMINISTIC)
 
         observation, reward, done, info = env.step(int(action))
 
@@ -78,7 +82,7 @@ def main():
 
         decisions.append((info['abstract_state'], info['decisions'][-1]))
 
-    show_heatmap(env, decisions)
+    show_heatmap(env, decisions, ACTION_FOCUS)
 
         
 if __name__ == '__main__':

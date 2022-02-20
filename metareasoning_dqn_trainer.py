@@ -1,21 +1,23 @@
 import ast
 
 import numpy as np
-import tensorflow as tf
+import torch as th
 from stable_baselines3 import DQN
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import (X_TIMESTEPS, load_results, ts2xy)
-from stable_baselines.deepq.policies import FeedForwardPolicy
+from stable_baselines3.dqn.policies import DQNPolicy
+from torch import nn
 
 import wandb
 from metareasoning_env import EXPANSION_STRATEGY_MAP, MetareasoningEnv
 
-# TODO Confirm heatmap results
-# TODO Confirm wandb results
 # TODO Confirm wandb with exploration = 0.1
 
 PROJECT = 'metareasoning-for-state-abstractions'
+LOGGING_DIRECTORY = 'logs'
+INFO_KEYWORDS = ('ground_state', 'abstract_state', 'decisions')
+
 CONFIG = {
     # The total number of time steps [Default = None]
     'total_timesteps': 5000,
@@ -26,17 +28,17 @@ CONFIG = {
     # The number of steps before gradient updates start [Default = 50000]
     'learning_starts': 300,
     # The minibatch size of each gradient update [Default = 32]
-    'batch_size': 32,
+    'batch_size': 64,
     # The hard/soft update coefficient (1 for hard updating; 0 for soft updating) [Default = 1]
     'tau': 1.0,
     # The discount factor [Default = 0.99]
     'gamma': 0.99,
     # The number of steps before each gradient update [Default = 4]
-    'train_freq': 4,
+    'train_freq': 1,
     # The number of gradient steps within each gradient update [Default = 1]
     'gradient_steps': 1,
     # The number of steps before the target network is updated [Default = 10000]
-    'target_update_interval': 500,
+    'target_update_interval': 1000,
     # The fraction of steps over which the exploration probability is reduced [Default = 0.1]
     'exploration_fraction': 0.1,
     # The initial exploration probability [Default = 1.0]
@@ -51,14 +53,11 @@ CONFIG = {
     'seed': None
 }
 
-LOGGING_DIRECTORY = 'logs'
-INFO_KEYWORDS = ('ground_state', 'abstract_state', 'decisions')
-
 REWARD_EPISODE_WINDOW = 1
 ACTION_EPISODE_WINDOW = 10
 
 MODEL_DIRECTORY = 'models'
-MODEL_FILE = 'dqn-model-4'
+MODEL_FILE = 'dqn-model'
 MODEL_PATH = '{}/{}'.format(MODEL_DIRECTORY, MODEL_FILE)
 
 
@@ -78,17 +77,6 @@ def get_action_probabilities(results):
     total_count = sum(action_frequencies.values())
 
     return {expansion_strategy: action_frequencies[expansion_strategy] / total_count for expansion_strategy in action_frequencies.keys()}
-
-
-class CustomDQNPolicy(FeedForwardPolicy):
-    def __init__(self, *args, **kwargs):
-        super(CustomDQNPolicy, self).__init__(*args, **kwargs,
-            layers=[64, 32], # The layers of the neural network [Default = [64, 64]]
-            act_fun=tf.nn.relu, # The activation function of the neural network [Default = tf.nn.relu]
-            layer_norm=False, # The layer normalization flat [Default = False]
-            dueling=True, # The dueling parameter that doubles the neural network for action score comparisons [Default = True]
-            feature_extraction="mlp" # The feature extraction type [Default = cnn]
-        )
 
 
 class WandbCallback(BaseCallback):
@@ -124,9 +112,23 @@ class WandbCallback(BaseCallback):
         self.run.finish()
 
 
+class CustomDQNPolicy(DQNPolicy):
+    def __init__(self, *args, **kwargs):
+        super(CustomDQNPolicy, self).__init__(*args, **kwargs,
+            # The layers of the neural network [Default = [64, 64]]
+            net_arch=[64, 32],
+            # The activation function of the neural network [Default = nn.ReLU]
+            activation_fn=nn.ReLU,
+            # The normalization layer that divides by 255 for images [Default = False]
+            normalize_images=False,
+            # The optimizer [Default = th.optim.Adam]
+            optimizer_class=th.optim.Adam
+        )
+
+
 def main():
     env = Monitor(MetareasoningEnv(), LOGGING_DIRECTORY, info_keywords=INFO_KEYWORDS)
-    
+
     model = DQN(CustomDQNPolicy, env,
         learning_rate=CONFIG['learning_rate'],
         buffer_size=CONFIG['buffer_size'],
