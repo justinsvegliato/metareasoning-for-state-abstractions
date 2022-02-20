@@ -55,6 +55,10 @@ logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelna
 
 # SAMER > JUSTIN
 # TODO Add new features (like kSR)
+# feat 1: entropy in occ measure of abstract policy
+# feat 2: abs val of dist to nearest goal - width of abstract state
+# feat 3: nume rewards within 2k steps
+
 # TODO Verify/fix the current features
 
 # JUSTIN === SAMER
