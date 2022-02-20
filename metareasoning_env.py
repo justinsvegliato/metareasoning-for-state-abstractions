@@ -1,7 +1,9 @@
 import logging
+import copy
 import math
 import random
 import statistics
+from scipy.stats import entropy
 
 import gym
 import numpy as np
@@ -59,38 +61,38 @@ EXPANSION_STRATEGY_MAP = {
 # Logger Initialization
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
-# SAMER > JUSTIN
-# TODO Add new features (like kSR)
-# feat 1: entropy in occ measure of abstract policy
-# feat 2: abs val of dist to nearest goal - width of abstract state
-# feat 3: nume rewards within 2k steps
-
-# TODO Verify/fix the current features
-
 class MetareasoningEnv(gym.Env):
 
     def __init__(self, ):
         super(MetareasoningEnv, self).__init__()
 
-        # TODO Implement a feature that represents all of the nearest abstract states with reward
-        # TODO Implement a feature that measures the current abstract state's local connectivity
-        # TODO Implement a feature that indicates whether we have we seen this weather pattern already
-        # TODO Update Feature 3
         self.observation_space = spaces.Box(
             # (1) Feature 1: The difference between the value of the current policy and the value of the previous policy
-            # (2) Feature 2: The percentage of abstract states that have been expanded
-            # (3) Feature 3: The distance from the current ground state to the nearest ground state with a point of interest
+            # (2) Feature 2: The distance from the current ground state to the nearest ground state with a point of interest
+            # (3) Feature 3: The number of PoI within a certain distance
+            # (4) Feature 4: The distance d to the nearest PoI expressed a the function 1 / (1+|d-ABSTRACT_STATE_WIDTH|)
+            # (5) Feature 5: The entropy of the successor distribution
+            # (6) Feature 6: The normalized, discounted, state occupancy frequency of the current abstract state
+            # (7) Feature 7: Whether or not the current ground state is (1.0) kSR wrt the closest PoI, or not (0.0) #NOTE: sampling version is also 0.0-1.0. Not in use at the moment.
             low=np.array([
                 np.float32(-np.Infinity),
+                np.float32(0.0),
+                np.float32(0.0),
+                np.float32(0.0),
+                np.float32(0.0),
                 np.float32(0.0),
                 np.float32(0.0)
             ]),
             high=np.array([
                 np.float32(np.Infinity),
+                np.float32(STATE_WIDTH),
+                np.float32(POINTS_OF_INTEREST),
                 np.float32(1.0),
-                np.float32(STATE_WIDTH)
+                np.float32(math.log((STATE_WIDTH/ABSTRACT_STATE_WIDTH) * (STATE_HEIGHT/ABSTRACT_STATE_HEIGHT))),
+                np.float32(1.0),
+                np.float32(1.0)
             ]),
-            shape=(3, )
+            shape=(7, )
         )
         self.action_space = spaces.Discrete(2)
 
@@ -186,14 +188,16 @@ class MetareasoningEnv(gym.Env):
         self.abstract_mdp = EarthObservationAbstractMDP(self.ground_mdp, ABSTRACTION, ABSTRACT_STATE_WIDTH, ABSTRACT_STATE_HEIGHT)
         logging.info("-- Built the abstract earth observation MDP: [states=%d, actions=%d]", len(self.abstract_mdp.states()), len(self.abstract_mdp.actions()))
 
-        abstract_solution = cplex_mdp_solver.solve(self.abstract_mdp, GAMMA)
-        abstract_policy = utils.get_policy(abstract_solution['values'], self.abstract_mdp, GAMMA)
+        self.abstract_solution = cplex_mdp_solver.solve(self.abstract_mdp, GAMMA)
+        self.abstract_policy = utils.get_policy(self.abstract_solution['values'], self.abstract_mdp, GAMMA)
         logging.info("-- Solved the abstract earth observation MDP: [states=%d, actions=%d]", len(self.abstract_mdp.states()), len(self.abstract_mdp.actions()))
+        #NOTE: can comment out if not using this feature
+        self.abstract_occupancy_frequency = self.__calculate_abstract_occupancy_frequency() 
 
         self.solved_ground_states = []    
         self.ground_policy_cache = {}
         for ground_state in self.ground_mdp.states():
-            self.ground_policy_cache[ground_state] = abstract_policy[self.abstract_mdp.get_abstract_state(ground_state)]
+            self.ground_policy_cache[ground_state] = self.abstract_policy[self.abstract_mdp.get_abstract_state(ground_state)]
         logging.info("-- Built the ground policy cache from the abstract policy")    
 
         initial_location = (0, 0)
@@ -318,8 +322,12 @@ class MetareasoningEnv(gym.Env):
     def __get_observation(self):
         return np.array([
             np.float32(self.current_quality),
-            np.float32(self.current_expansion_ratio),
-            np.float32(self.current_reward_distance)
+            np.float32(self.current_reward_distance), 
+            np.float32(self.num_close_rewards(ABSTRACT_STATE_WIDTH)), 
+            np.float32(self.face_check_goals()),
+            np.float32(self.entropy_of_abstract_outcome()),
+            np.float32(self.get_abstract_occupancy_frequency(self.current_abstract_state)), 
+            np.float32(self.is_kSR())
         ])
     
     def __get_reward(self):
@@ -366,8 +374,6 @@ class MetareasoningEnv(gym.Env):
     def is_probably_kSR(self, k, n, m):
         #NOTE: could generate list of "goal" states a different way, or perhaps as an argument to the function instead
         min_dist, min_dist_loc = self.closest_goal()
-        #TODO: what if goal is within k steps?
-
         possible_states_after_k_arbitrary_actions = []
         for i in range(n):
             current_state = self.current_ground_state
@@ -401,14 +407,81 @@ class MetareasoningEnv(gym.Env):
 
         return kSR_prob 
  
+    #NOTE: k makes most sense as ABSTRACT_STATE_WIDTH
+    def num_close_rewards(self, k):
+        current_location, current_weather_status = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
+        num_close_goals = 0
+        for key in current_weather_status.keys():
+            dist = 0
+            if key[1] > current_location[1]:
+                dist = key[1] - current_location[1]
+            else:
+                dist = (key[1] + STATE_WIDTH) - current_location[1]
+            if dist < 2 * k:
+                num_close_goals += 1
+
+        return num_close_goals
+
+    def face_check_goals(self):
+        min_dist, _ = self.closest_goal()
+        return 1.0 / (1.0 + abs(min_dist - STATE_WIDTH))
+
+    #NOTE: basically, grab one row from abstract transition matrix. Probbably there are faster ways to do this.
+    def entropy_of_abstract_outcome(self):
+        abstract_action = self.abstract_policy[self.current_abstract_state]
+        successor_distribution = np.zeros(len(self.abstract_mdp.states()))
+        state_index = 0
+        for abstract_state in self.abstract_mdp.states():
+            successor_distribution[state_index] = self.abstract_mdp.transition_function(self.current_abstract_state, abstract_action, abstract_state)
+            state_index += 1
+
+        return entropy(successor_distribution)
+
+    def __calculate_abstract_occupancy_frequency(self):
+        #NOTE: can we get this from the policy / value function w/o re-solving the problem? The only ways I could figure out doing this involved either matrix inverses (possibly this is the way, but it's harder to interpret) or something that looks like value iteration, which is what I programmed.
+        prev_occupancy_frequency = np.zeros(len(self.abstract_mdp.states()))
+        occupancy_frequency = np.zeros(len(self.abstract_mdp.states()))
+        start_state_distribution = np.full((len(self.abstract_mdp.states())), 1.0/len(self.abstract_mdp.states()))
+        eps = 0.001
+        done = False
+        while not done:
+            occupancy_frequency = copy.deepcopy(start_state_distribution) #NOTE: these are start state probabilities... could change if we wanted.
+            state_index = 0
+            for state in self.abstract_mdp.states():
+                action = self.abstract_policy[state]
+                succ_index = 0
+                for succ in self.abstract_mdp.states():
+                    occupancy_frequency[succ_index] += prev_occupancy_frequency[state_index] * GAMMA * self.abstract_mdp.transition_function(state, action, succ)
+                    succ_index += 1
+                state_index += 1
+
+            max_diff = np.max(np.abs(np.subtract(prev_occupancy_frequency, occupancy_frequency)))
+            prev_occupancy_frequency = copy.deepcopy(occupancy_frequency)
+            if max_diff < eps:
+                done = True
+
+        # Normalize
+        norm = np.linalg.norm(occupancy_frequency)
+        occupancy_frequency = occupancy_frequency / norm
+        occ_freq = {}
+        state_index = 0
+        for state in self.abstract_mdp.states():
+            occ_freq[state] = occupancy_frequency[state_index]
+            state_index += 1
+        return occ_freq
+
+    def get_abstract_occupancy_frequency(self, abstract_state):
+        return self.abstract_occupancy_frequency[abstract_state]
+
 def main():
     pure_naive_rewards = []
     pure_proactive_rewards = []
     hard_kSR_rewards = []
     
-    for i in range(100): # number of seeds
+    for i in range(10): # number of seeds
         random.seed(i)
 
+        """
         env = MetareasoningEnv()
         observation = env.reset()
         print("Observation:", observation)
@@ -434,7 +507,7 @@ def main():
             print("Done:", done)
             pure_proactive_rewards.append(reward)
 
-
+        """
         env = MetareasoningEnv()
         observation = env.reset()
         print("Observation:", observation)
@@ -447,6 +520,18 @@ def main():
             kSR = env.is_kSR()
             #print("HARD")
             #print(kSR)
+            new_dist = env.face_check_goals()
+            print("adj dist")
+            print(new_dist)
+            num_near = env.num_close_rewards(ABSTRACT_STATE_WIDTH)
+            print("num near")
+            print(num_near)
+            entropy = env.entropy_of_abstract_outcome()
+            print("entropy")
+            print(entropy)
+            occ_freq = env.get_abstract_occupancy_frequency(env.current_abstract_state)
+            print("occ freq")
+            print(occ_freq)
             if kSR:
                 action = 0
             observation, reward, done, _ = env.step(action)
