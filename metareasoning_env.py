@@ -1,6 +1,7 @@
 import logging
 import copy
 import math
+import time
 import random
 import statistics
 from scipy.stats import entropy
@@ -126,7 +127,10 @@ class MetareasoningEnv(gym.Env):
         logging.info("ENVIRONMENT STEP [%d, %s, %s]", self.current_step, EXPANSION_STRATEGY_MAP[action], self.current_abstract_state)
 
         logging.info("-- Executed the policy sketch refine algorithm")
+        t0 = time.time()
         solution = policy_sketch_refine.solve(self.ground_mdp, self.current_ground_state, self.abstract_mdp, self.current_abstract_state, EXPANSION_STRATEGY_MAP[action], GAMMA)
+        tf = time.time()
+        self.time = tf - t0
 
         # TODO Verify and clean up this confusing code
         new_solved_ground_values = utils.get_values(solution['values'], self.ground_mdp, self.abstract_mdp)
@@ -475,14 +479,24 @@ class MetareasoningEnv(gym.Env):
         return self.abstract_occupancy_frequency[abstract_state]
 
 def main():
-    pure_naive_rewards = []
-    pure_proactive_rewards = []
-    hard_kSR_rewards = []
+    meta_pure_naive_rewards = []
+    meta_pure_proactive_rewards = []
+    meta_hard_kSR_rewards = []
+    meta_soft_kSR_rewards = []
+    
+    ground_pure_naive_rewards = []
+    ground_pure_proactive_rewards = []
+    ground_hard_kSR_rewards = []
+    ground_soft_kSR_rewards = []
+    
+    meta_pure_naive_times = []
+    meta_pure_proactive_times = []
+    meta_hard_kSR_times = []
+    meta_soft_kSR_times = []
     
     for i in range(10): # number of seeds
         random.seed(i)
 
-        """
         env = MetareasoningEnv()
         observation = env.reset()
         print("Observation:", observation)
@@ -493,7 +507,9 @@ def main():
             print("Observation:", observation)
             print("Reward:", reward)
             print("Done:", done)
-            pure_naive_rewards.append(reward)
+            meta_pure_naive_rewards.append(reward)
+            ground_pure_naive_rewards.append(reward)
+            meta_pure_naive_times.append(env.time)
 
 
         env = MetareasoningEnv()
@@ -506,9 +522,10 @@ def main():
             print("Observation:", observation)
             print("Reward:", reward)
             print("Done:", done)
-            pure_proactive_rewards.append(reward)
+            meta_pure_proactive_rewards.append(reward)
+            ground_pure_proactive_rewards.append(reward)
+            meta_pure_proactive_times.append(env.time)
 
-        """
         env = MetareasoningEnv()
         observation = env.reset()
         print("Observation:", observation)
@@ -539,8 +556,13 @@ def main():
             print("Observation:", observation)
             print("Reward:", reward)
             print("Done:", done)
-            hard_kSR_rewards.append(reward)
+            meta_hard_kSR_rewards.append(reward)
+            ground_hard_kSR_rewards.append(reward)
+            meta_hard_kSR_times.append(env.time)
 
+            meta_soft_kSR_rewards.append(reward)
+            ground_soft_kSR_rewards.append(reward)
+            meta_soft_kSR_times.append(env.time)
 
     print("NAIVE")
     print(sum(pure_naive_rewards))
