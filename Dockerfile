@@ -2,6 +2,9 @@ FROM python:3.7
 
 WORKDIR /app
 
+RUN apt-get update
+RUN apt-get vim
+
 RUN wget https://justinsvegliato.com/cplex/cplex_studio1210.linux-x86-64.bin
 RUN chmod +x cplex_studio1210.linux-x86-64.bin
 
