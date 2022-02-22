@@ -61,8 +61,10 @@ MODEL_DIRECTORY = 'models'
 MODEL_TAG = 'dqn'
 MODEL_TEMPLATE = '{}/{}-{}'
 
+ENV = None
 
-def get_mean_reward(y):
+
+def get_mean_episode_reward(y):
     return np.mean(y[-REWARD_EPISODE_WINDOW:])
 
 
@@ -101,27 +103,26 @@ class TrackerCallback(BaseCallback):
             x, y = ts2xy(results, X_TIMESTEPS)
 
             if len(x) > 0:
-                mean_reward = get_mean_reward(y)
+                mean_episode_reward = get_mean_episode_reward(y)
                 action_probabilities = get_action_probabilities(results)
 
-                logdict = {
-                    'Training/Reward': mean_reward,
+                log_entry = {
                     'Training/Naive': action_probabilities['NAIVE'],
                     'Training/Proactive': action_probabilities['PROACTIVE'],
-                    'time/episodes': self.model._episode_num,
-                    'rollout/r': ENV.episode_returns[-1],
-                    'rollout/l': ENV.episode_lengths[-1]
+                    'Training/Episodes': self.model._episode_num,
+                    'Training/Episode Reward': mean_episode_reward,
+                    'Training/Episode Length': ENV.episode_lengths[-1]
                 }
 
-                replay_data = self.model.replay_buffer.sample(256 , env=self.model._vec_normalize_env)
                 with th.no_grad():
-                    v_pi, _ = self.model.q_net(replay_data.observations).max(dim=1)
-                    av_v_pi = v_pi.mean()
-                    logdict['train/av_value_pi'] = av_v_pi
+                    samples = self.model.replay_buffer.sample(256 , env=self.model._vec_normalize_env)
+                    sampled_values, _ = self.model.q_net(samples.observations).max(dim=1)
+                    average_value = sampled_values.mean()
+                    log_entry['Training/Average Value'] = average_value
 
-                logdict.update(self.model.logger.name_to_value)
+                # log_entry['Training/Exploration_Rate'] = self.model.logger.name_to_value['exploration_rate']
 
-                wandb.log(logdict, step=self.num_timesteps)
+                wandb.log(log_entry, step=self.num_timesteps)
 
         return True
 
@@ -141,8 +142,6 @@ class CustomDQNPolicy(DQNPolicy):
             # The optimizer [Default = th.optim.Adam]
             optimizer_class=th.optim.Adam
         )
-
-ENV = None
 
 def main():
     global ENV
@@ -175,7 +174,7 @@ def main():
 
     model.learn(
         total_timesteps=CONFIG['total_timesteps'],
-        callback=TrackerCallback(PROJECT, CONFIG, LOG_DIRECTORY),
+        callback=tracker_callback,
         log_interval=1
     )
 
