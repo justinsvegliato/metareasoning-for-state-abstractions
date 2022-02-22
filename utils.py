@@ -103,18 +103,16 @@ def get_intrinisic_value(quality, alpha):
     return alpha * quality
 
 
-def get_linear_cost_of_time(time, beta):
-    return beta * time
+def get_linear_cost_of_time(computation_time, beta):
+    return beta * computation_time
 
 
-def get_exponential_cost_of_time(time, beta):
-    return math.exp(beta * time)
+def get_exponential_cost_of_time(computation_time, beta):
+    return math.exp(beta * computation_time) - 1
 
 
-def get_time_dependent_utility(quality, time, alpha, beta, exponential):
+def get_time_dependent_utility(quality, computation_time, alpha, beta, exponential):
     if exponential:
-        return get_intrinisic_value(quality, alpha) - get_exponential_cost_of_time(time, beta)
+        return get_intrinisic_value(quality, alpha) - get_exponential_cost_of_time(computation_time, beta)
     
-    return get_intrinisic_value(quality, alpha) - get_linear_cost_of_time(time, beta)
-
-
+    return get_intrinisic_value(quality, alpha) - get_linear_cost_of_time(computation_time, beta)
