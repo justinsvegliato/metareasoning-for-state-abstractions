@@ -1,4 +1,5 @@
 import random
+import math
 
 # TODO Clean up this file because these functions are esoteric as hell
 
@@ -93,21 +94,27 @@ def get_partitions(l, num_partitions):
     return [l[i:i + num_partitions] for i in range(0, len(l), num_partitions)]
 
 
-# TODO Fix this function
-# TODO Confirm this function
-def get_computation_time(state_space_size, action_space_size, scale):
+def get_computation_time(state_space_size, action_space_size):
     operations = (state_space_size ** 2) * action_space_size
-    return scale * operations
+    return operations
 
 
 def get_intrinisic_value(quality, alpha):
     return alpha * quality
 
 
-# TODO Add exponential cost of time
-def get_cost_of_time(time, beta):
+def get_linear_cost_of_time(time, beta):
     return beta * time
 
 
-def get_time_dependent_utility(quality, time, alpha, beta):
-    return get_intrinisic_value(quality, alpha) - get_cost_of_time(time, beta)
+def get_exponential_cost_of_time(time, beta):
+    return math.exp(beta * time)
+
+
+def get_time_dependent_utility(quality, time, alpha, beta, exponential):
+    if exponential:
+        return get_intrinisic_value(quality, alpha) - get_exponential_cost_of_time(time, beta)
+    
+    return get_intrinisic_value(quality, alpha) - get_linear_cost_of_time(time, beta)
+
+

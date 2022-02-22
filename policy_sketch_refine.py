@@ -65,7 +65,7 @@ def sketch(abstract_mdp, gamma):
 
 
 def refine(ground_mdp, ground_state, abstract_mdp, abstract_state, sketched_solution, expansion_strategy, gamma):
-    if expansion_strategy == 'NAIVE':
+    if expansion_strategy == 'NONE':
         sketched_solution['state_space_size'] = abstract_mdp.state_space_size
         sketched_solution['action_space_size'] = abstract_mdp.action_space_size
         return sketched_solution
