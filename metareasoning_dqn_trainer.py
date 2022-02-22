@@ -120,7 +120,7 @@ class TrackerCallback(BaseCallback):
                     average_value = sampled_values.mean()
                     log_entry['Training/Average Value'] = average_value
 
-                # log_entry['Training/Exploration_Rate'] = self.model.logger.name_to_value['exploration_rate']
+                log_entry['Training/Exploration Rate'] = self.model.logger.name_to_value['rollout/exploration_rate']
 
                 wandb.log(log_entry, step=self.num_timesteps)
 
