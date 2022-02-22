@@ -69,8 +69,8 @@ class MetareasoningEnv(gym.Env):
             # (1) Feature 1: The difference between the value of the current policy and the value of the previous policy
             # (2) Feature 2: The distance from the current ground state to the nearest ground state with a point of interest
             # (3) Feature 3: The number of PoI within a certain distance
-            # (4) Feature 4: The distance d to the nearest PoI expressed a the function 1 / (1+|d-ABSTRACT_STATE_WIDTH|)
-            # (5) Feature 5: The entropy of the successor distribution
+            # (4) Feature 4: The distance d to the nearest PoI expressed as the function 1 / (1+|d-ABSTRACT_STATE_WIDTH|)
+            # (5) Feature 5: The entropy of the abstract successor distribution for the current abstract state
             # (6) Feature 6: The normalized, discounted, state occupancy frequency of the current abstract state
             # (7) Feature 7: Whether or not the current ground state is (1.0) kSR wrt the closest PoI, or not (0.0) #NOTE: sampling version is also 0.0-1.0. Not in use at the moment.
             low=np.array([
@@ -84,8 +84,8 @@ class MetareasoningEnv(gym.Env):
             ]),
             high=np.array([
                 #np.float32(np.Infinity),
-                np.float32(STATE_WIDTH),
-                np.float32(POINTS_OF_INTEREST),
+                np.float32(1.0),
+                np.float32(1.0),
                 np.float32(1.0),
                 np.float32(math.log((STATE_WIDTH/ABSTRACT_STATE_WIDTH) * (STATE_HEIGHT/ABSTRACT_STATE_HEIGHT))),
                 np.float32(1.0),
