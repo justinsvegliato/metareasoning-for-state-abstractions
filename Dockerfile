@@ -13,7 +13,3 @@ RUN pip install -r requirements.txt
 # DOCKER COMMANDS
 # docker build -t <EXPERIMENT> metareasoning-for-state-abstractions
 # docker run -i -t <IMAGE> /bin/bash/
-
-# CPLEX COMMANDS
-# ./cplex_studio1210.linux-x86-64.bin
-# python /opt/ibm/ILOG/CPLEX_Studio1210/python/setup.py install
