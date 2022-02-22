@@ -164,7 +164,7 @@ class MetareasoningEnv(gym.Env):
 
         # NOTE This is a number proportional to the cumulative number of operations needed to solve all PAMDPs encountered so far (each PAMDP contributes |S|^2|A|).
         self.previous_computation_time = self.current_computation_time
-        self.current_computation_time += utils.get_computation_time(solution['state_space_size'], solution['action_space_size'])
+        self.current_computation_time = utils.get_computation_time(solution['state_space_size'], solution['action_space_size'])
         self.previous_quality = self.current_quality
         self.current_quality = self.__get_current_quality()
         self.current_expansions += 1
