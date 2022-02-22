@@ -116,7 +116,6 @@ class MetareasoningEnv(gym.Env):
         self.current_computation_time = None
         self.previous_quality = None
         self.current_quality = None
-        self.current_expansion_ratio = None
         self.current_reward_distance = None
 
     def step(self, action):
@@ -168,7 +167,6 @@ class MetareasoningEnv(gym.Env):
         self.previous_quality = self.current_quality
         self.current_quality = self.__get_current_quality()
         self.current_expansions += 1
-        self.current_expansion_ratio = self.__get_current_expansion_ratio()
         self.current_reward_distance = self.__get_current_reward_distance()
 
         return self.__get_observation(), self.__get_reward(), self.__get_done(), self.__get_info(self.decision_point_ground_state, self.decision_point_abstract_state, self.decisions)
@@ -220,7 +218,6 @@ class MetareasoningEnv(gym.Env):
         self.previous_quality = 0
         self.current_quality = self.__get_current_quality()
         self.current_expansions = 0
-        self.current_expansion_ratio = self.__get_current_expansion_ratio()
         self.current_reward_distance = self.__get_current_reward_distance()
 
         logging.info("SIMULATION")
@@ -301,9 +298,6 @@ class MetareasoningEnv(gym.Env):
             current_quality = statistics.mean([values[decision_point_ground_state] for decision_point_ground_state in self.decision_point_ground_states])
 
         return current_quality / self.value_normalizer if VALUE_NORMALIZATION else current_quality
-
-    def __get_current_expansion_ratio(self):
-        return self.current_expansions / len(self.abstract_mdp.states())
 
     def __get_current_reward_distance(self):
         current_location, current_weather_status = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
