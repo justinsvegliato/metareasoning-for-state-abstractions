@@ -33,7 +33,7 @@ CONFIG = {
     # The discount factor [Default = 0.99]
     'gamma': 0.99,
     # The number of steps before each gradient update [Default = 4]
-    'train_freq': 1,
+    'train_freq': 4,
     # The number of gradient steps within each gradient update [Default = 1]
     'gradient_steps': 1,
     # The number of steps before the target network is updated [Default = 10000]

@@ -35,8 +35,8 @@ HORIZON = TRAVERSES * STATE_WIDTH
 
 # Time-Dependent Utility Settings
 ALPHA = 3
-BETA = 0
-SCALE = 0.000001
+BETA = 1
+SCALE = 0.00003
 
 # Policy Quality Calculation Settings
 VALUE_FOCUS = 'SINGLE_DECISION_POINT_GROUND_STATE'
@@ -160,8 +160,9 @@ class MetareasoningEnv(gym.Env):
             self.current_abstract_state = self.abstract_mdp.get_abstract_state(self.current_ground_state)
             self.current_step += 1
 
+        # TODO Decide whether to do myopic/nonmyopic computation time
         self.previous_computation_time = self.current_computation_time
-        self.current_computation_time += utils.get_computation_time(solution['state_space_size'], solution['action_space_size'], SCALE)
+        self.current_computation_time = utils.get_computation_time(solution['state_space_size'], solution['action_space_size'], SCALE)
         self.previous_quality = self.current_quality
         self.current_quality = self.__get_current_quality()
         self.current_expansions += 1
