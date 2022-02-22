@@ -93,18 +93,33 @@ class WandbCallback(BaseCallback):
         )
 
     def _on_step(self) -> bool:
-        results = load_results(self.logging_directory)
-        x, y = ts2xy(results, X_TIMESTEPS)
+        global ENV
+        done = self.locals["dones"][0]
 
-        if len(x) > 0:
-            mean_reward = get_mean_reward(y)
-            action_probabilities = get_action_probabilities(results)
+        if done:
+            results = load_results(self.logging_directory)
+            x, y = ts2xy(results, X_TIMESTEPS)
 
-            wandb.log({
-                'Training/Reward': mean_reward,
-                'Training/Naive': action_probabilities['NAIVE'],
-                'Training/Proactive': action_probabilities['PROACTIVE']
-            })
+            if len(x) > 0:
+                mean_reward = get_mean_reward(y)
+                action_probabilities = get_action_probabilities(results)
+                logdict = {
+                    'Training/Reward': mean_reward,
+                    'Training/Naive': action_probabilities['NAIVE'],
+                    'Training/Proactive': action_probabilities['PROACTIVE'],
+                    "time/episodes": self.model._episode_num,
+                    "rollout/r": ENV.episode_returns[-1],
+                    "rollout/l": ENV.episode_lengths[-1]
+                }
+                replay_data = self.model.replay_buffer.sample(256 , env=self.model._vec_normalize_env)
+                with th.no_grad():
+                    v_pi, _ = self.model.q_net(replay_data.observations).max(dim=1)
+                    av_v_pi = v_pi.mean()
+                logdict["train/av_value_pi"] = av_v_pi
+
+                logdict.update(self.model.logger.name_to_value)
+
+                wandb.log(logdict, step=self.num_timesteps)
 
         return True
 
@@ -126,10 +141,13 @@ class CustomDQNPolicy(DQNPolicy):
         )
 
 
-def main():
-    env = Monitor(MetareasoningEnv(), LOGGING_DIRECTORY, info_keywords=INFO_KEYWORDS)
+ENV = None
 
-    model = DQN(CustomDQNPolicy, env,
+def main():
+    global ENV
+    ENV = Monitor(MetareasoningEnv(), LOGGING_DIRECTORY, info_keywords=INFO_KEYWORDS)
+
+    model = DQN(CustomDQNPolicy, ENV,
         learning_rate=CONFIG['learning_rate'],
         buffer_size=CONFIG['buffer_size'],
         learning_starts=CONFIG['learning_starts'],
@@ -144,12 +162,14 @@ def main():
         exploration_final_eps=CONFIG['exploration_final_eps'],
         max_grad_norm=CONFIG['max_grad_norm'],
         verbose=CONFIG['verbose'],
-        seed=CONFIG['seed']
+        seed=CONFIG['seed'],
+        device="cpu"
     )
 
     model.learn(
         total_timesteps=CONFIG['total_timesteps'],
-        callback=WandbCallback(PROJECT, CONFIG, LOGGING_DIRECTORY)
+        callback=WandbCallback(PROJECT, CONFIG, LOGGING_DIRECTORY),
+        log_interval=1
     )
 
     model.save(MODEL_PATH)
