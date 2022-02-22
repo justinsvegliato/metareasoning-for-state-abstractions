@@ -10,5 +10,10 @@ COPY . .
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-# docker build -t metareasoning-for-state-abstractions metareasoning-for-state-abstractions
+# DOCKER COMMANDS
+# docker build -t <EXPERIMENT> metareasoning-for-state-abstractions
 # docker run -i -t <IMAGE> /bin/bash/
+
+# CPLEX COMMANDS
+# ./cplex_studio1210.linux-x86-64.bin
+# python /opt/ibm/ILOG/CPLEX_Studio1210/python/setup.py install
