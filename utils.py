@@ -1,8 +1,6 @@
 import random
 import math
 
-# TODO Clean up this file because these functions are esoteric as hell
-
 
 def get_policy(values, mdp, gamma):
     policy = {}
