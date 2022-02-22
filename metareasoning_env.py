@@ -41,9 +41,9 @@ ALPHA = 3
 BETA = 0.000001
 
 # Policy Quality Calculation Settings
-VALUE_FOCUS = 'SINGLE_DECISION_POINT_GROUND_STATE'
+VALUE_FOCUS = 'ALL_DECISION_POINT_GROUND_STATES'
 VALUE_DETERMINATION = 'EXACT'
-VALUE_NORMALIZATION = False
+VALUE_NORMALIZATION = True
 SIMULATIONS = 1000
 
 # Helpul Mappings
@@ -67,15 +67,15 @@ class MetareasoningEnv(gym.Env):
         super(MetareasoningEnv, self).__init__()
 
         self.observation_space = spaces.Box(
-            # (1) Feature 1: The difference between the value of the current policy and the value of the previous policy
+            # (X) Feature 1: The difference between the value of the current policy and the value of the previous policy
             # (2) Feature 2: The distance from the current ground state to the nearest ground state with a point of interest
             # (3) Feature 3: The number of PoI within a certain distance
             # (4) Feature 4: The distance d to the nearest PoI expressed as the function 1 / (1+|d-ABSTRACT_STATE_WIDTH|)
             # (5) Feature 5: The entropy of the abstract successor distribution for the current abstract state
             # (6) Feature 6: The normalized, discounted, state occupancy frequency of the current abstract state
-            # (7) Feature 7: Whether or not the current ground state is (1.0) kSR wrt the closest PoI, or not (0.0) #NOTE: sampling version is also 0.0-1.0. Not in use at the moment.
+            # (7) Feature 7: Whether or not the current ground state is (1.0) kSR wrt the closest PoI, or not (0.0) # NOTE The sampling version is also between 0.0 and 1.0 - not in use
             low=np.array([
-                #np.float32(-np.Infinity),
+                # np.float32(-np.Infinity),
                 np.float32(0.0),
                 np.float32(0.0),
                 np.float32(0.0),
@@ -84,7 +84,7 @@ class MetareasoningEnv(gym.Env):
                 np.float32(0.0)
             ]),
             high=np.array([
-                #np.float32(np.Infinity),
+                # np.float32(np.Infinity),
                 np.float32(1.0),
                 np.float32(1.0),
                 np.float32(1.0),
@@ -119,9 +119,6 @@ class MetareasoningEnv(gym.Env):
         self.current_quality = None
         self.current_expansion_ratio = None
         self.current_reward_distance = None
-
-        if VALUE_NORMALIZATION:
-            self.value_normalizer = self.__get_maximum_value()
 
     def step(self, action):
         logging.info("ENVIRONMENT STEP [%d, %s, %s]", self.current_step, EXPANSION_STRATEGY_MAP[action], self.current_abstract_state)
@@ -169,9 +166,8 @@ class MetareasoningEnv(gym.Env):
             self.current_abstract_state = self.abstract_mdp.get_abstract_state(self.current_ground_state)
             self.current_step += 1
 
-        # This is a number proportional to the cumulative number of operations needed to solve all PAMDPs encountered so far. Each PAMDP contributes |S|^2|A|.
+        # NOTE This is a number proportional to the cumulative number of operations needed to solve all PAMDPs encountered so far (each PAMDP contributes |S|^2|A|).
         self.previous_computation_time = self.current_computation_time
-        #self.current_computation_time += utils.get_computation_time(solution['state_space_size'], solution['action_space_size'], SCALE)
         self.current_computation_time += utils.get_computation_time(solution['state_space_size'], solution['action_space_size'])
         self.previous_quality = self.current_quality
         self.current_quality = self.__get_current_quality()
@@ -196,7 +192,11 @@ class MetareasoningEnv(gym.Env):
         self.abstract_solution = cplex_mdp_solver.solve(self.abstract_mdp, GAMMA)
         self.abstract_policy = utils.get_policy(self.abstract_solution['values'], self.abstract_mdp, GAMMA)
         logging.info("-- Solved the abstract earth observation MDP: [states=%d, actions=%d]", len(self.abstract_mdp.states()), len(self.abstract_mdp.actions()))
-        #NOTE: can comment out if not using this feature
+
+        if VALUE_NORMALIZATION:
+            self.value_normalizer = self.__get_maximum_value()
+
+        # NOTE This feature can be commented out if we're not using it
         self.abstract_occupancy_frequency = self.__calculate_abstract_occupancy_frequency() 
 
         self.solved_ground_states = []    
@@ -326,7 +326,7 @@ class MetareasoningEnv(gym.Env):
 
     def __get_observation(self):
         return np.array([
-            #np.float32(self.current_quality),
+            # np.float32(self.current_quality),
             np.float32(self.current_reward_distance), 
             np.float32(self.num_close_rewards(ABSTRACT_STATE_WIDTH)), 
             np.float32(self.face_check_goals()),
@@ -336,8 +336,8 @@ class MetareasoningEnv(gym.Env):
         ])
     
     def __get_reward(self):
-        current_time_dependent_utility = utils.get_time_dependent_utility(self.current_quality, self.current_computation_time, ALPHA, BETA, exponential=True)
-        previous_time_dependent_utility = utils.get_time_dependent_utility(self.previous_quality, self.previous_computation_time, ALPHA, BETA, exponential=True)
+        current_time_dependent_utility = utils.get_time_dependent_utility(self.current_quality, self.current_computation_time, ALPHA, BETA, True)
+        previous_time_dependent_utility = utils.get_time_dependent_utility(self.previous_quality, self.previous_computation_time, ALPHA, BETA, True)
         return current_time_dependent_utility - previous_time_dependent_utility 
 
     def __get_done(self):
@@ -494,7 +494,7 @@ def main():
     meta_hard_kSR_times = []
     meta_soft_kSR_times = []
     
-    for i in range(10): # number of seeds
+    for i in range(10):
         random.seed(i)
 
         env = MetareasoningEnv()
@@ -570,7 +570,6 @@ def main():
     print(sum(pure_proactive_rewards))
     print("HARD kSR")
     print(sum(hard_kSR_rewards))
-
 
 
 if __name__ == '__main__':

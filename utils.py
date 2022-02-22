@@ -111,10 +111,10 @@ def get_exponential_cost_of_time(time, beta):
     return math.exp(beta * time)
 
 
-def get_time_dependent_utility(quality, time, alpha, beta, exponential=True):
+def get_time_dependent_utility(quality, time, alpha, beta, exponential):
     if exponential:
         return get_intrinisic_value(quality, alpha) - get_exponential_cost_of_time(time, beta)
-    else:
-        return get_intrinisic_value(quality, alpha) - get_linear_cost_of_time(time, beta)
+    
+    return get_intrinisic_value(quality, alpha) - get_linear_cost_of_time(time, beta)
 
 

@@ -4,6 +4,7 @@ import numpy as np
 import torch as th
 from stable_baselines3 import DQN
 from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.logger import configure
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import (X_TIMESTEPS, load_results, ts2xy)
 from stable_baselines3.dqn.policies import DQNPolicy
@@ -12,10 +13,8 @@ from torch import nn
 import wandb
 from metareasoning_env import EXPANSION_STRATEGY_MAP, MetareasoningEnv
 
-# TODO Confirm wandb with exploration = 0.1
-
 PROJECT = 'metareasoning-for-state-abstractions'
-LOGGING_DIRECTORY = 'logs'
+LOG_DIRECTORY = 'logs'
 INFO_KEYWORDS = ('ground_state', 'abstract_state', 'decisions')
 
 CONFIG = {
@@ -34,11 +33,11 @@ CONFIG = {
     # The discount factor [Default = 0.99]
     'gamma': 0.99,
     # The number of steps before each gradient update [Default = 4]
-    'train_freq': 1,
+    'train_freq': 4,
     # The number of gradient steps within each gradient update [Default = 1]
     'gradient_steps': 1,
     # The number of steps before the target network is updated [Default = 10000]
-    'target_update_interval': 1000,
+    'target_update_interval': 500,
     # The fraction of steps over which the exploration probability is reduced [Default = 0.1]
     'exploration_fraction': 0.1,
     # The initial exploration probability [Default = 1.0]
@@ -48,17 +47,19 @@ CONFIG = {
     # The maximum value for clipping the gradient in each gradient update [Default = 10]
     'max_grad_norm': 10,
     # The verbosity level [Default = 0]
-    'verbose': 1,
+    'verbose': 0,
     # The seed for pseudorandom number generation [Default = None]
-    'seed': None
+    'seed': None,
+    # The execution architecture [Default = cpu]
+    'device': 'cpu'
 }
 
 REWARD_EPISODE_WINDOW = 1
 ACTION_EPISODE_WINDOW = 10
 
 MODEL_DIRECTORY = 'models'
-MODEL_FILE = 'dqn-model'
-MODEL_PATH = '{}/{}'.format(MODEL_DIRECTORY, MODEL_FILE)
+MODEL_TAG = 'dqn'
+MODEL_TEMPLATE = '{}/{}-{}'
 
 
 def get_mean_reward(y):
@@ -79,43 +80,44 @@ def get_action_probabilities(results):
     return {expansion_strategy: action_frequencies[expansion_strategy] / total_count for expansion_strategy in action_frequencies.keys()}
 
 
-class WandbCallback(BaseCallback):
-    def __init__(self, project, config, logging_directory):
-        super(WandbCallback, self).__init__()
-
-        self.project = project
-        self.config = config
-        self.logging_directory = logging_directory
+class TrackerCallback(BaseCallback):
+    def __init__(self, project, config, log_directory):
+        super(TrackerCallback, self).__init__()
 
         self.run = wandb.init(
-            project=self.project, 
-            config=self.config
+            project=project, 
+            config=config
         )
+
+        self.log_directory = log_directory
 
     def _on_step(self) -> bool:
         global ENV
-        done = self.locals["dones"][0]
+
+        done = self.locals['dones'][0]
 
         if done:
-            results = load_results(self.logging_directory)
+            results = load_results(self.log_directory)
             x, y = ts2xy(results, X_TIMESTEPS)
 
             if len(x) > 0:
                 mean_reward = get_mean_reward(y)
                 action_probabilities = get_action_probabilities(results)
+
                 logdict = {
                     'Training/Reward': mean_reward,
                     'Training/Naive': action_probabilities['NAIVE'],
                     'Training/Proactive': action_probabilities['PROACTIVE'],
-                    "time/episodes": self.model._episode_num,
-                    "rollout/r": ENV.episode_returns[-1],
-                    "rollout/l": ENV.episode_lengths[-1]
+                    'time/episodes': self.model._episode_num,
+                    'rollout/r': ENV.episode_returns[-1],
+                    'rollout/l': ENV.episode_lengths[-1]
                 }
+
                 replay_data = self.model.replay_buffer.sample(256 , env=self.model._vec_normalize_env)
                 with th.no_grad():
                     v_pi, _ = self.model.q_net(replay_data.observations).max(dim=1)
                     av_v_pi = v_pi.mean()
-                logdict["train/av_value_pi"] = av_v_pi
+                    logdict['train/av_value_pi'] = av_v_pi
 
                 logdict.update(self.model.logger.name_to_value)
 
@@ -140,12 +142,12 @@ class CustomDQNPolicy(DQNPolicy):
             optimizer_class=th.optim.Adam
         )
 
-
 ENV = None
 
 def main():
     global ENV
-    ENV = Monitor(MetareasoningEnv(), LOGGING_DIRECTORY, info_keywords=INFO_KEYWORDS)
+
+    ENV = Monitor(MetareasoningEnv(), LOG_DIRECTORY, info_keywords=INFO_KEYWORDS)
 
     model = DQN(CustomDQNPolicy, ENV,
         learning_rate=CONFIG['learning_rate'],
@@ -163,16 +165,22 @@ def main():
         max_grad_norm=CONFIG['max_grad_norm'],
         verbose=CONFIG['verbose'],
         seed=CONFIG['seed'],
-        device="cpu"
+        device=CONFIG['device']
     )
+
+    logger = configure(LOG_DIRECTORY, ['csv', ])
+    model.set_logger(logger)
+
+    tracker_callback = TrackerCallback(PROJECT, CONFIG, LOG_DIRECTORY)
 
     model.learn(
         total_timesteps=CONFIG['total_timesteps'],
-        callback=WandbCallback(PROJECT, CONFIG, LOGGING_DIRECTORY),
+        callback=TrackerCallback(PROJECT, CONFIG, LOG_DIRECTORY),
         log_interval=1
     )
 
-    model.save(MODEL_PATH)
+    model_path = MODEL_TEMPLATE.format(MODEL_DIRECTORY, MODEL_TAG, tracker_callback.run.name)
+    model.save(model_path)
 
 
 if __name__ == '__main__':
