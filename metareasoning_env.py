@@ -84,8 +84,8 @@ class MetareasoningEnv(gym.Env):
             ]),
             high=np.array([
                 #np.float32(np.Infinity),
-                np.float32(STATE_WIDTH),
-                np.float32(POINTS_OF_INTEREST),
+                np.float32(1.0),
+                np.float32(1.0),
                 np.float32(1.0),
                 np.float32(math.log((STATE_WIDTH/ABSTRACT_STATE_WIDTH) * (STATE_HEIGHT/ABSTRACT_STATE_HEIGHT))),
                 np.float32(1.0),
