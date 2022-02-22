@@ -12,4 +12,4 @@ RUN pip install -r requirements.txt
 
 # DOCKER COMMANDS
 # docker build -t <EXPERIMENT> metareasoning-for-state-abstractions
-# docker run -i -t <IMAGE> /bin/bash/
+# docker run -i -t <IMAGE> /bin/bash
