@@ -285,7 +285,8 @@ class MetareasoningEnv(gym.Env):
 
     # TODO Improve this with a given state and its reachability
     # TODO Improve this with the expected point of interest weather
-    def __get_maximum_value(self, most_likely_weather=True):
+    # TODO Improve this with discounting
+    def __get_maximum_value(self):
         states = self.ground_mdp.states()
         actions = self.ground_mdp.actions()
 
@@ -331,6 +332,7 @@ class MetareasoningEnv(gym.Env):
 
         return float(current_reward_distance / STATE_WIDTH)
 
+    # TODO This is only for horizontal distance, right?
     def __get_closest_goal(self):
         current_location, current_weather_status = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
 
@@ -356,7 +358,8 @@ class MetareasoningEnv(gym.Env):
 
         minimum_distance, minimum_distance_location = self.__get_closest_goal()
 
-        # TODO Verify these lines with Samer
+        # TODO Walk through these lines with Samer - can we break them up?
+        # TODO Why do we use ABSTRACT_STATE_WIDTH twice here?
         extreme_north = (max(0, (current_location[0] - ABSTRACT_STATE_WIDTH)), (current_location[1] + ABSTRACT_STATE_WIDTH) % STATE_WIDTH)
         extreme_south = (min(STATE_HEIGHT, (current_location[0] + ABSTRACT_STATE_WIDTH)), (current_location[1] + ABSTRACT_STATE_WIDTH) % STATE_WIDTH)
 
@@ -366,6 +369,7 @@ class MetareasoningEnv(gym.Env):
         return True
  
     # NOTE The parameter k makes most sense as ABSTRACT_STATE_WIDTH
+    # TODO Do we just make this ABSTRACT_STATE_WIDTH?
     def __get_num_close_rewards(self, k):
         current_location, current_weather_status = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
 
@@ -378,26 +382,33 @@ class MetareasoningEnv(gym.Env):
                 # TODO Verify this line with Samer and reference policy_sketch_refine.py
                 distance = (key[1] + STATE_WIDTH) - current_location[1]
 
-            # TODO Verify this line with Samer
+            # TODO Verify the range
+            # TODO Less than or equal to?
             if distance < 2 * k:
                 num_close_goals += 1
 
-        # TODO Verify this line with Samer
         return float(num_close_goals / POINTS_OF_INTEREST)
 
+    # TODO What does this do? I understand the code, but I don't understand its intuition
+    # Suppose we have a minimum distance of 1 and a state width of 9: 0.1 (we're right in front of it)
+    # Suppose we have a minimum distance of 8 and a state width of 9: 0.5 (we just passed it)
+    # Suppose we have a minimum distance of 9 and a state width of 9: 1.0 (we're on top of it like your mom)
     def __face_check_goals(self):
         minimum_distance, _ = self.__get_closest_goal()
         return 1.0 / (1.0 + abs(minimum_distance - STATE_WIDTH))
 
+    # TODO What's the expected behavior here?
+    # TODO If we have [0.33, 0.33, 0.33], we get 0.0
+    # TODO If we have [1.0, 0.0, 0.0], we get 0.63
     def __get_entropy_of_abstract_successor_distribution(self):
-        abstract_states = self.abstract_mdp.states()
-        abstract_action = self.abstract_policy[self.current_abstract_state]
+        states = self.abstract_mdp.states()
+        action = self.abstract_policy[self.current_abstract_state]
 
-        abstract_successor_distribution = np.zeros(len(abstract_states))
-        for index, successor_abstract_state in enumerate(abstract_states):
-            abstract_successor_distribution[index] = self.abstract_mdp.transition_function(self.current_abstract_state, abstract_action, successor_abstract_state)
+        successor_distribution = np.zeros(len(states))
+        for index, successor_state in enumerate(states):
+            successor_distribution[index] = self.abstract_mdp.transition_function(self.current_abstract_state, action, successor_state)
 
-        return scipy.stats.entropy(abstract_successor_distribution)
+        return scipy.stats.entropy(successor_distribution)
 
     # NOTE Can we get this from the policy/value function without re-solving the problem? 
     # The only ways I could figure out doing this involved either matrix inverses or 
@@ -417,11 +428,11 @@ class MetareasoningEnv(gym.Env):
             # NOTE These are start state probabilities that could change if we wanted to
             occupancy_frequency = copy.deepcopy(start_state_distribution)
 
-            for state_index, state in enumerate(self.abstract_mdp.states()):
+            for index, state in enumerate(self.abstract_mdp.states()):
                 action = self.abstract_policy[state]
                 for successor_state_index, successor_state in enumerate(self.abstract_mdp.states()):
                     # TODO Confirm this line with Samer
-                    occupancy_frequency[successor_state_index] += previous_occupancy_frequency[state_index] * GAMMA * self.abstract_mdp.transition_function(state, action, successor_state)
+                    occupancy_frequency[successor_state_index] += previous_occupancy_frequency[index] * GAMMA * self.abstract_mdp.transition_function(state, action, successor_state)
 
             maximum_difference = np.max(np.abs(np.subtract(previous_occupancy_frequency, occupancy_frequency)))
             previous_occupancy_frequency = copy.deepcopy(occupancy_frequency)
