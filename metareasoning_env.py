@@ -39,10 +39,10 @@ HORIZON = TRAVERSES * STATE_WIDTH
 
 # Time-Dependent Utility Settings
 ALPHA = 1
-BETA = 0.0005
+BETA = 0.000002
 
 # Policy Quality Calculation Settings
-VALUE_FOCUS = 'SINGLE_DECISION_POINT_GROUND_STATE'
+VALUE_FOCUS = 'INITIAL_GROUND_STATE'
 VALUE_DETERMINATION = 'EXACT'
 VALUE_NORMALIZATION = False
 SIMULATIONS = 1000
@@ -211,6 +211,7 @@ class MetareasoningEnv(gym.Env):
         self.current_computation_time = 0
         self.previous_quality = 0
         self.current_quality = self.__get_current_quality()
+        self.start_quality = self.current_quality
 
         logging.info("SIMULATION")
         logging.info(">>>> Ground State: [%s] | Abstract State: [%s] | Action: [%s]", self.current_ground_state, self.current_abstract_state, self.current_action)
@@ -229,9 +230,15 @@ class MetareasoningEnv(gym.Env):
         ])
     
     def get_reward(self):
-        current_time_dependent_utility = utils.get_time_dependent_utility(self.current_quality, self.current_computation_time, ALPHA, BETA, True)
-        previous_time_dependent_utility = utils.get_time_dependent_utility(self.previous_quality, self.previous_computation_time, ALPHA, BETA, True)
-        return current_time_dependent_utility - previous_time_dependent_utility 
+        # current_time_dependent_utility = utils.get_time_dependent_utility(self.current_quality, self.current_computation_time, ALPHA, BETA, True)
+        # previous_time_dependent_utility = utils.get_time_dependent_utility(self.previous_quality, self.previous_computation_time, ALPHA, BETA, True)
+        # return current_time_dependent_utility - previous_time_dependent_utility 
+        current_intrinsic_value = utils.get_intrinisic_value(self.current_quality, ALPHA)
+        previous_intrinsic_value = utils.get_intrinisic_value(self.previous_quality, ALPHA)
+        timecost_of_action = utils.get_exponential_cost_of_time(self.current_computation_time, BETA) # (timecost of the current state is the sum of all timecost_of_actions so far)
+        r = current_intrinsic_value - previous_intrinsic_value - timecost_of_action
+        # print("prev", previous_intrinsic_value, "cur", current_intrinsic_value, "rnocost", current_intrinsic_value - previous_intrinsic_value, "tcost", timecost_of_action, "r", r)
+        return r
 
     def get_done(self):
         return self.current_step > HORIZON

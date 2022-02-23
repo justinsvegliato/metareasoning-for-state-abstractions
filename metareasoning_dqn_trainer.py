@@ -19,13 +19,13 @@ INFO_KEYWORDS = ('ground_state', 'abstract_state', 'decisions')
 
 CONFIG = {
     # The total number of time steps [Default = None]
-    'total_timesteps': 5000,
+    'total_timesteps': 20000,
     # The learning rate [Default = 0.0001]
     'learning_rate': 0.0001,
     # The size of the experience buffer [Default = 1000000]
     'buffer_size': 1000000,
     # The number of steps before gradient updates start [Default = 50000]
-    'learning_starts': 300,
+    'learning_starts': 200,
     # The minibatch size of each gradient update [Default = 32]
     'batch_size': 64,
     # The hard/soft update coefficient (1 for hard updating; 0 for soft updating) [Default = 1]
@@ -33,17 +33,17 @@ CONFIG = {
     # The discount factor [Default = 0.99]
     'gamma': 0.99,
     # The number of steps before each gradient update [Default = 4]
-    'train_freq': 4,
+    'train_freq': 1,
     # The number of gradient steps within each gradient update [Default = 1]
     'gradient_steps': 1,
     # The number of steps before the target network is updated [Default = 10000]
-    'target_update_interval': 500,
+    'target_update_interval': 200,
     # The fraction of steps over which the exploration probability is reduced [Default = 0.1]
-    'exploration_fraction': 0.1,
+    'exploration_fraction': 0.05,
     # The initial exploration probability [Default = 1.0]
     'exploration_initial_eps': 1.0,
     # The final exploration probability [Default = 0.05]
-    'exploration_final_eps': 0.05,
+    'exploration_final_eps': 0.1,
     # The maximum value for clipping the gradient in each gradient update [Default = 10]
     'max_grad_norm': 10,
     # The verbosity level [Default = 0]
@@ -111,7 +111,9 @@ class TrackerCallback(BaseCallback):
                     'Training/Proactive': action_probabilities['PROACTIVE'],
                     'Training/Episodes': self.model._episode_num,
                     'Training/Episode Reward': mean_episode_reward,
-                    'Training/Episode Length': ENV.episode_lengths[-1]
+                    'Training/Episode Length': ENV.episode_lengths[-1],
+                    'Training/Final Quality': ENV.unwrapped.current_quality,
+                    'Training/Start Quality': ENV.unwrapped.start_quality
                 }
 
                 with th.no_grad():
