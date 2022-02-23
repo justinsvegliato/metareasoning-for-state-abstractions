@@ -6,10 +6,11 @@ from stable_baselines3 import DQN
 from metareasoning_env import EXPANSION_STRATEGY_MAP, MetareasoningEnv
 
 RUN_NAME = 'absurd-dragon-117'
+RUN_CHECKPOINT = 500
 
 MODEL_DIRECTORY = 'models'
 MODEL_TAG = 'dqn'
-MODEL_PATH = '{}/{}-{}'.format(MODEL_DIRECTORY, MODEL_TAG, RUN_NAME)
+MODEL_PATH = '{}/{}-{}-[{}]'.format(MODEL_DIRECTORY, MODEL_TAG, RUN_NAME, RUN_CHECKPOINT)
 
 DETERMINISTIC = False
 ACTION_FOCUS = 'PROACTIVE'
