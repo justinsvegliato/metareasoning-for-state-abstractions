@@ -22,6 +22,8 @@ STATE_WIDTH = 12
 STATE_HEIGHT = 6
 SIZE = (STATE_HEIGHT, STATE_WIDTH)
 POINTS_OF_INTEREST = 2
+START_LOCATION = (0, )
+START_VISIBILITY = earth_observation_mdp.MAX_VISIBILITY
 
 # Abstract MDP Settings
 ABSTRACTION = 'MEAN'
@@ -191,8 +193,8 @@ class MetareasoningEnv(gym.Env):
             self.ground_policy_cache[ground_state] = self.abstract_policy[self.abstract_mdp.get_abstract_state(ground_state)]
         logging.info("-- Built the ground policy cache from the abstract policy")    
 
-        initial_location = (0, 0)
-        initial_point_of_interest_description = {key: earth_observation_mdp.MAX_VISIBILITY for key in self.ground_mdp.point_of_interest_description}
+        initial_location = START_LOCATION
+        initial_point_of_interest_description = {key: START_VISIBILITY for key in self.ground_mdp.point_of_interest_description}
         self.initial_ground_state = self.ground_mdp.get_state_from_state_factors(initial_location, initial_point_of_interest_description)
 
         self.decision_point_ground_state = self.initial_ground_state
@@ -283,7 +285,7 @@ class MetareasoningEnv(gym.Env):
 
     # TODO Improve this with a given state and its reachability
     # TODO Improve this with the expected point of interest weather
-    def __get_maximum_value(self):
+    def __get_maximum_value(self, most_likely_weather=True):
         states = self.ground_mdp.states()
         actions = self.ground_mdp.actions()
 
