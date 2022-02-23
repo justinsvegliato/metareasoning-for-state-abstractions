@@ -37,7 +37,7 @@ HORIZON = TRAVERSES * STATE_WIDTH
 
 # Time-Dependent Utility Settings
 ALPHA = 3
-BETA = 0.000001
+BETA = 0.0005
 
 # Policy Quality Calculation Settings
 VALUE_FOCUS = 'SINGLE_DECISION_POINT_GROUND_STATE'
@@ -219,11 +219,11 @@ class MetareasoningEnv(gym.Env):
     def get_observation(self):
         return np.array([
             np.float32(self.__get_current_reward_distance()), 
-            np.float32(self.__num_close_rewards(ABSTRACT_STATE_WIDTH)), 
+            np.float32(self.__get_num_close_rewards(ABSTRACT_STATE_WIDTH)), 
             np.float32(self.__face_check_goals()),
-            np.float32(self.__entropy_of_abstract_outcome()),
+            np.float32(self.__get_entropy_of_abstract_successor_distribution()),
             np.float32(self.__get_abstract_occupancy_frequency(self.current_abstract_state)), 
-            np.float32(self.__is_kSR())
+            np.float32(self.__is_k_step_reachable())
         ])
     
     def get_reward(self):
@@ -327,42 +327,118 @@ class MetareasoningEnv(gym.Env):
  
             current_reward_distance = min(current_reward_distance, manhattan_distance)
 
-        return float(current_reward_distance/STATE_WIDTH)
+        return float(current_reward_distance / STATE_WIDTH)
 
-    def __closest_goal(self):
+    def __get_closest_goal(self):
         current_location, current_weather_status = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
 
-        minimum_distance_location = None
         minimum_distance = math.inf
+        minimum_distance_location = None
+
         for key in current_weather_status.keys():
             distance = 0
             if key[1] > current_location[1]:
                 distance = key[1] - current_location[1]
             else:
+                # TODO Verify this line with Samer and reference policy_sketch_refine.py
                 distance = (key[1] + STATE_WIDTH) - current_location[1]
+
             if distance < minimum_distance:
                 minimum_distance = distance
                 minimum_distance_location = key
 
         return minimum_distance, minimum_distance_location
 
-    def __is_kSR(self):
+    def __is_k_step_reachable(self):
         current_location, _ = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
 
-        min_dist, min_dist_loc = self.__closest_goal()
+        minimum_distance, minimum_distance_location = self.__get_closest_goal()
 
+        # TODO Verify these lines with Samer
         extreme_north = (max(0, (current_location[0] - ABSTRACT_STATE_WIDTH)), (current_location[1] + ABSTRACT_STATE_WIDTH) % STATE_WIDTH)
         extreme_south = (min(STATE_HEIGHT, (current_location[0] + ABSTRACT_STATE_WIDTH)), (current_location[1] + ABSTRACT_STATE_WIDTH) % STATE_WIDTH)
 
-        if (abs(extreme_north[0] - min_dist_loc[0]) > min_dist) or (abs(extreme_south[0] - min_dist_loc[0]) > min_dist):
+        if (abs(extreme_north[0] - minimum_distance_location[0]) > minimum_distance) or (abs(extreme_south[0] - minimum_distance_location[0]) > minimum_distance):
             return False
 
         return True
+ 
+    # NOTE The parameter k makes most sense as ABSTRACT_STATE_WIDTH
+    def __get_num_close_rewards(self, k):
+        current_location, current_weather_status = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
 
-    #NOTE: This relaxes some assumptions from EOD, but also still relies on a bunch of EOD-specific stuff about how state is represented. Also, this relies on the constant, one-step motion of the agent east at every step. In the general case, the for loop over (min_dist - k) will have to be some general estimate of the number of actions needed to encounter the goal. Also, the goal being reached will need to be checked within that loop rather than once at the end, since the agent may reach it part way through the trajectory.
-    def __is_probably_kSR(self, k, n, m):
-        #NOTE: could generate list of "goal" states a different way, or perhaps as an argument to the function instead
-        min_dist, min_dist_loc = self.__closest_goal()
+        num_close_goals = 0
+        for key in current_weather_status.keys():
+            distance = 0
+            if key[1] > current_location[1]:
+                distance = key[1] - current_location[1]
+            else:
+                # TODO Verify this line with Samer and reference policy_sketch_refine.py
+                distance = (key[1] + STATE_WIDTH) - current_location[1]
+
+            # TODO Verify this line with Samer
+            if distance < 2 * k:
+                num_close_goals += 1
+
+        # TODO Verify this line with Samer
+        return float(num_close_goals / POINTS_OF_INTEREST)
+
+    def __face_check_goals(self):
+        minimum_distance, _ = self.__get_closest_goal()
+        return 1.0 / (1.0 + abs(minimum_distance - STATE_WIDTH))
+
+    def __get_entropy_of_abstract_successor_distribution(self):
+        abstract_states = self.abstract_mdp.states()
+        abstract_action = self.abstract_policy[self.current_abstract_state]
+
+        abstract_successor_distribution = np.zeros(len(abstract_states))
+        for index, successor_abstract_state in enumerate(abstract_states):
+            abstract_successor_distribution[index] = self.abstract_mdp.transition_function(self.current_abstract_state, abstract_action, successor_abstract_state)
+
+        return entropy(abstract_successor_distribution)
+
+    # NOTE Can we get this from the policy/value function without re-solving the problem? 
+    # The only ways I could figure out doing this involved either matrix inverses or 
+    # something that looks like value iteration, which is what I programmed.
+    def __calculate_abstract_occupancy_frequency(self):
+        start_state_distribution = np.full((len(self.abstract_mdp.states())), 1.0 / len(self.abstract_mdp.states()))
+
+        previous_occupancy_frequency = np.zeros(len(self.abstract_mdp.states()))
+        occupancy_frequency = np.zeros(len(self.abstract_mdp.states()))
+
+        epsilon = 0.001
+        
+        done = False
+        while not done:
+            # NOTE These are start state probabilities that could change if we wanted to
+            occupancy_frequency = copy.deepcopy(start_state_distribution)
+
+            for state_index, state in enumerate(self.abstract_mdp.states()):
+                action = self.abstract_policy[state]
+                for successor_state_index, successor_state in enumerate(self.abstract_mdp.states()):
+                    occupancy_frequency[successor_state_index] += previous_occupancy_frequency[state_index] * GAMMA * self.abstract_mdp.transition_function(state, action, successor_state)
+
+            maximum_difference = np.max(np.abs(np.subtract(previous_occupancy_frequency, occupancy_frequency)))
+            previous_occupancy_frequency = copy.deepcopy(occupancy_frequency)
+            if maximum_difference < epsilon:
+                done = True
+
+        occupancy_frequency = occupancy_frequency / np.linalg.norm(occupancy_frequency)
+
+        return {state: occupancy_frequency[index] for index, state in enumerate(self.abstract_mdp.states())}
+
+    def __get_abstract_occupancy_frequency(self, abstract_state):
+        return self.abstract_occupancy_frequency[abstract_state]
+
+    # NOTE This relaxes some assumptions from EOD, but also still relies on a bunch of EOD-specific 
+    # stuff about how state is represented. Also, this relies on the constant, one-step motion of 
+    # the agent east at every step. In the general case, the for loop over (min_dist - k) will have 
+    # to be some general estimate of the number of actions needed to encounter the goal. Also, the 
+    # goal being reached will need to be checked within that loop rather than once at the end, since 
+    # the agent may reach it part way through the trajectory.
+    def __is_probably_k_step_reachable(self, k, n, m):
+        # NOTE could generate list of "goal" states a different way, or perhaps as an argument to the function instead
+        min_dist, min_dist_loc = self.__get_closest_goal()
         possible_states_after_k_arbitrary_actions = []
         for _ in range(n):
             current_state = self.current_ground_state
@@ -371,7 +447,7 @@ class MetareasoningEnv(gym.Env):
                 current_state = utils.get_successor_state(current_state, action, self.ground_mdp)
             possible_states_after_k_arbitrary_actions.append(current_state)
 
-        #NOTE: could check this for dupes to make slightly faster
+        # NOTE could check this for dupes to make slightly faster
         reachable = [0] * len(possible_states_after_k_arbitrary_actions)
         for s in range(len(possible_states_after_k_arbitrary_actions)):
             state = possible_states_after_k_arbitrary_actions[s]
@@ -394,146 +470,70 @@ class MetareasoningEnv(gym.Env):
             kSR_prob = "too close"
 
         return kSR_prob 
- 
-    #NOTE: k makes most sense as ABSTRACT_STATE_WIDTH
-    def __num_close_rewards(self, k):
-        current_location, current_weather_status = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
-        num_close_goals = 0
-        for key in current_weather_status.keys():
-            dist = 0
-            if key[1] > current_location[1]:
-                dist = key[1] - current_location[1]
-            else:
-                dist = (key[1] + STATE_WIDTH) - current_location[1]
-            if dist < 2 * k:
-                num_close_goals += 1
-
-        return float(num_close_goals/POINTS_OF_INTEREST)
-
-    def __face_check_goals(self):
-        min_dist, _ = self.__closest_goal()
-        return 1.0 / (1.0 + abs(min_dist - STATE_WIDTH))
-
-    #NOTE: basically, grab one row from abstract transition matrix. Probbably there are faster ways to do this.
-    def __entropy_of_abstract_outcome(self):
-        abstract_action = self.abstract_policy[self.current_abstract_state]
-        successor_distribution = np.zeros(len(self.abstract_mdp.states()))
-        state_index = 0
-        for abstract_state in self.abstract_mdp.states():
-            successor_distribution[state_index] = self.abstract_mdp.transition_function(self.current_abstract_state, abstract_action, abstract_state)
-            state_index += 1
-
-        return entropy(successor_distribution)
-
-    def __calculate_abstract_occupancy_frequency(self):
-        #NOTE: can we get this from the policy / value function w/o re-solving the problem? The only ways I could figure out doing this involved either matrix inverses (possibly this is the way, but it's harder to interpret) or something that looks like value iteration, which is what I programmed.
-        prev_occupancy_frequency = np.zeros(len(self.abstract_mdp.states()))
-        occupancy_frequency = np.zeros(len(self.abstract_mdp.states()))
-        start_state_distribution = np.full((len(self.abstract_mdp.states())), 1.0/len(self.abstract_mdp.states()))
-        eps = 0.001
-        done = False
-        while not done:
-            occupancy_frequency = copy.deepcopy(start_state_distribution) #NOTE: these are start state probabilities... could change if we wanted.
-            state_index = 0
-            for state in self.abstract_mdp.states():
-                action = self.abstract_policy[state]
-                succ_index = 0
-                for succ in self.abstract_mdp.states():
-                    occupancy_frequency[succ_index] += prev_occupancy_frequency[state_index] * GAMMA * self.abstract_mdp.transition_function(state, action, succ)
-                    succ_index += 1
-                state_index += 1
-
-            max_diff = np.max(np.abs(np.subtract(prev_occupancy_frequency, occupancy_frequency)))
-            prev_occupancy_frequency = copy.deepcopy(occupancy_frequency)
-            if max_diff < eps:
-                done = True
-
-        # Normalize
-        norm = np.linalg.norm(occupancy_frequency)
-        occupancy_frequency = occupancy_frequency / norm
-        occ_freq = {}
-        state_index = 0
-        for state in self.abstract_mdp.states():
-            occ_freq[state] = occupancy_frequency[state_index]
-            state_index += 1
-        return occ_freq
-
-    def __get_abstract_occupancy_frequency(self, abstract_state):
-        return self.abstract_occupancy_frequency[abstract_state]
 
 def main():
     pure_naive_rewards = []
     pure_proactive_rewards = []
-    hard_kSR_rewards = []
+    hard_k_step_reachable_rewards = []
     
-    for i in range(10):
-        random.seed(i)
+    for seed in range(10):
+        random.seed(seed)
 
-        """
-        env = MetareasoningEnv()
-        observation = env.reset()
-        print("Observation:", observation)
-        done = False
-        while not done:
-            action = 0
-            observation, reward, done, _ = env.step(action)
-            print("Observation:", observation)
-            print("Reward:", reward)
-            print("Done:", done)
-            pure_naive_rewards.append(reward)
+        # env = MetareasoningEnv()
+        # observation = env.reset()
+        # print("Observation:", observation)
+        # done = False
+        # while not done:
+        #     action = 0
+        #     observation, reward, done, _ = env.step(action)
+        #     print("Observation:", observation)
+        #     print("Reward:", reward)
+        #     print("Done:", done)
+        #     pure_naive_rewards.append(reward)
 
-        env = MetareasoningEnv()
-        observation = env.reset()
-        print("Observation:", observation)
-        done = False
-        while not done:
-            action = 1
-            observation, reward, done, _ = env.step(action)
-            print("Observation:", observation)
-            print("Reward:", reward)
-            print("Done:", done)
-            pure_proactive_rewards.append(reward)
-
-        """
+        # env = MetareasoningEnv()
+        # observation = env.reset()
+        # print("Observation:", observation)
+        # done = False
+        # while not done:
+        #     action = 1
+        #     observation, reward, done, _ = env.step(action)
+        #     print("Observation:", observation)
+        #     print("Reward:", reward)
+        #     print("Done:", done)
+        #     pure_proactive_rewards.append(reward)
 
         env = MetareasoningEnv()
         observation = env.reset()
         print("Observation:", observation)
         done = False
         while not done:
-            action = 1
-            #prob_kSR = env.is_probably_kSR(ABSTRACT_STATE_WIDTH, 100, 100)
-            #print("SOFT")
-            #print(prob_kSR)
-            kSR = env.__is_kSR()
-            #print("HARD")
-            #print(kSR)
-            new_dist = env.__face_check_goals()
-            #print("adj dist")
-            #print(new_dist)
-            num_near = env.__num_close_rewards(ABSTRACT_STATE_WIDTH)
-            #print("num near")
-            #print(num_near)
-            entropy = env.__entropy_of_abstract_outcome()
-            #print("entropy")
-            #print(entropy)
-            occ_freq = env.__get_abstract_occupancy_frequency(env.current_abstract_state)
-            #print("occ freq")
-            #print(occ_freq)
-            if kSR:
-                action = 0
+            hard_k_step_reachable = env.__is_k_step_reachable()
+            print("k-Step Reachable:", hard_k_step_reachable)
+        
+            # new_dist = env.__face_check_goals()
+            # print("adj dist")
+            # print(new_dist)
+            
+            num_close_rewards = env.__get_num_close_rewards(ABSTRACT_STATE_WIDTH)
+            print("Num Close Rewards:", num_close_rewards)
+
+            entropy = env.__get_entropy_of_abstract_successor_distribution()
+            print("Entropy:", entropy)
+
+            occupancy_frequency = env.__get_abstract_occupancy_frequency(env.current_abstract_state)
+            print("Occupancy Frequency:", occupancy_frequency)
+
+            action = 0 if hard_k_step_reachable else 1
             observation, reward, done, _ = env.step(action)
             print("Observation:", observation)
             print("Reward:", reward)
             print("Done:", done)
-            hard_kSR_rewards.append(reward)
+            hard_k_step_reachable_rewards.append(reward)
 
-    print("NAIVE")
-    print(sum(pure_naive_rewards))
-    print("PROACTIVE")
-    print(sum(pure_proactive_rewards))
-    print("HARD kSR")
-    print(sum(hard_kSR_rewards))
+    print("Pure Naive Rewards:", sum(pure_naive_rewards))
+    print("Pure Proactive Rewards:", sum(pure_proactive_rewards))
+    print("Hard k-Step Reachable Rewards:", sum(hard_k_step_reachable_rewards))
 
 
 if __name__ == '__main__':
