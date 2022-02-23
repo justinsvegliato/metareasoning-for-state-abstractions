@@ -3,7 +3,7 @@ import copy
 import math
 import random
 import statistics
-from scipy.stats import entropy
+import scipy.stats
 
 import gym
 import numpy as np
@@ -395,12 +395,13 @@ class MetareasoningEnv(gym.Env):
         for index, successor_abstract_state in enumerate(abstract_states):
             abstract_successor_distribution[index] = self.abstract_mdp.transition_function(self.current_abstract_state, abstract_action, successor_abstract_state)
 
-        return entropy(abstract_successor_distribution)
+        return scipy.stats.entropy(abstract_successor_distribution)
 
     # NOTE Can we get this from the policy/value function without re-solving the problem? 
     # The only ways I could figure out doing this involved either matrix inverses or 
     # something that looks like value iteration, which is what I programmed.
     def __calculate_abstract_occupancy_frequency(self):
+        # TODO Can we just initialize occupancy_frequency directly?
         start_state_distribution = np.full((len(self.abstract_mdp.states())), 1.0 / len(self.abstract_mdp.states()))
 
         previous_occupancy_frequency = np.zeros(len(self.abstract_mdp.states()))
@@ -408,6 +409,7 @@ class MetareasoningEnv(gym.Env):
 
         epsilon = 0.001
         
+        # TODO Can we simplify the condition of this while loop?
         done = False
         while not done:
             # NOTE These are start state probabilities that could change if we wanted to
@@ -416,6 +418,7 @@ class MetareasoningEnv(gym.Env):
             for state_index, state in enumerate(self.abstract_mdp.states()):
                 action = self.abstract_policy[state]
                 for successor_state_index, successor_state in enumerate(self.abstract_mdp.states()):
+                    # TODO Confirm this line with Samer
                     occupancy_frequency[successor_state_index] += previous_occupancy_frequency[state_index] * GAMMA * self.abstract_mdp.transition_function(state, action, successor_state)
 
             maximum_difference = np.max(np.abs(np.subtract(previous_occupancy_frequency, occupancy_frequency)))
