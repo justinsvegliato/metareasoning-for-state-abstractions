@@ -36,7 +36,7 @@ TRAVERSES = 20
 HORIZON = TRAVERSES * STATE_WIDTH
 
 # Time-Dependent Utility Settings
-ALPHA = 3
+ALPHA = 1
 BETA = 0.0005
 
 # Policy Quality Calculation Settings
