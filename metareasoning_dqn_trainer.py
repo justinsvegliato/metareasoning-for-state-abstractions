@@ -4,7 +4,6 @@ import numpy as np
 import torch as th
 from stable_baselines3 import DQN
 from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.logger import configure
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import (X_TIMESTEPS, load_results, ts2xy)
 from stable_baselines3.dqn.policies import DQNPolicy
@@ -59,7 +58,8 @@ ACTION_EPISODE_WINDOW = 10
 
 MODEL_DIRECTORY = 'models'
 MODEL_TAG = 'dqn'
-MODEL_TEMPLATE = '{}/{}-{}'
+MODEL_TEMPLATE = '{}/{}-{}-[{}]'
+MODEL_CHECKPOINT_INTERVAL = 250
 
 ENV = None
 
@@ -83,7 +83,7 @@ def get_action_probabilities(results):
 
 
 class TrackerCallback(BaseCallback):
-    def __init__(self, project, config, log_directory):
+    def __init__(self, project, config, log_directory, model):
         super(TrackerCallback, self).__init__()
 
         self.run = wandb.init(
@@ -92,6 +92,9 @@ class TrackerCallback(BaseCallback):
         )
 
         self.log_directory = log_directory
+        self.model = model
+
+        self.episodes = 0
 
     def _on_step(self) -> bool:
         global ENV
@@ -113,7 +116,8 @@ class TrackerCallback(BaseCallback):
                     'Training/Episode Reward': mean_episode_reward,
                     'Training/Episode Length': ENV.episode_lengths[-1],
                     'Training/Final Quality': ENV.unwrapped.current_quality,
-                    'Training/Start Quality': ENV.unwrapped.start_quality
+                    'Training/Start Quality': ENV.unwrapped.start_quality,
+                    'Training/Exploration Rate': self.model.logger.name_to_value['rollout/exploration_rate']
                 }
 
                 with th.no_grad():
@@ -122,9 +126,13 @@ class TrackerCallback(BaseCallback):
                     average_value = sampled_values.mean()
                     log_entry['Training/Average Value'] = average_value
 
-                log_entry['Training/Exploration Rate'] = self.model.logger.name_to_value['rollout/exploration_rate']
-
                 wandb.log(log_entry, step=self.num_timesteps)
+
+                if self.episodes % MODEL_CHECKPOINT_INTERVAL == 0:
+                    model_path = MODEL_TEMPLATE.format(MODEL_DIRECTORY, MODEL_TAG, self.run.name, self.episodes)
+                    self.model.save(model_path)
+            
+                self.episodes += 1
 
         return True
 
@@ -169,10 +177,7 @@ def main():
         device=CONFIG['device']
     )
 
-    logger = configure(LOG_DIRECTORY, ['csv', ])
-    model.set_logger(logger)
-
-    tracker_callback = TrackerCallback(PROJECT, CONFIG, LOG_DIRECTORY)
+    tracker_callback = TrackerCallback(PROJECT, CONFIG, LOG_DIRECTORY, model)
 
     model.learn(
         total_timesteps=CONFIG['total_timesteps'],
@@ -180,7 +185,7 @@ def main():
         log_interval=1
     )
 
-    model_path = MODEL_TEMPLATE.format(MODEL_DIRECTORY, MODEL_TAG, tracker_callback.run.name)
+    model_path = MODEL_TEMPLATE.format(MODEL_DIRECTORY, MODEL_TAG, tracker_callback.run.name, 'final')
     model.save(model_path)
 
 
