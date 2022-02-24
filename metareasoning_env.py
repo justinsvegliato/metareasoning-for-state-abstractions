@@ -37,7 +37,7 @@ ABSTRACT_STATE_HEIGHT = 3
 GAMMA = 0.99
 
 # Simulator Settings
-TRAVERSES = 220
+TRAVERSES = 20
 HORIZON = TRAVERSES * STATE_WIDTH
 
 # Time-Dependent Utility Settings
