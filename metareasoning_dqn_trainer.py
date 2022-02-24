@@ -18,7 +18,7 @@ INFO_KEYWORDS = ('ground_state', 'abstract_state', 'decisions')
 
 CONFIG = {
     # The total number of time steps [Default = None]
-    'total_timesteps': 100,
+    'total_timesteps': 20000,
     # The learning rate [Default = 0.0001]
     'learning_rate': 0.0001,
     # The size of the experience buffer [Default = 1000000]
