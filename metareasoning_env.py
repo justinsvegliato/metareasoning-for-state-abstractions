@@ -161,7 +161,7 @@ class MetareasoningEnv(gym.Env):
         self.previous_computation_time = self.current_computation_time
         self.current_computation_time = utils.get_computation_time(solution['state_space_size'], solution['action_space_size'])
         self.previous_quality = self.current_quality
-        self.current_quality = self.__get_current_quality()
+        self.current_quality = self.get_current_quality()
 
         return self.get_observation(), self.get_reward(), self.get_done(), self.get_info(self.decision_point_ground_state, self.decision_point_abstract_state, self.decisions)
 
@@ -182,10 +182,10 @@ class MetareasoningEnv(gym.Env):
         logging.info("-- Solved the abstract earth observation MDP: [states=%d, actions=%d]", len(self.abstract_mdp.states()), len(self.abstract_mdp.actions()))
 
         if VALUE_NORMALIZATION:
-            self.value_normalizer = self.__get_maximum_value()
+            self.value_normalizer = self.get_maximum_value()
 
         # NOTE This feature can be commented out if we're not using it
-        self.abstract_occupancy_frequency = self.__calculate_abstract_occupancy_frequency() 
+        self.abstract_occupancy_frequency = self.calculate_abstract_occupancy_frequency() 
 
         self.solved_ground_states = []    
         self.ground_policy_cache = {}
@@ -210,7 +210,7 @@ class MetareasoningEnv(gym.Env):
         self.previous_computation_time = 0
         self.current_computation_time = 0
         self.previous_quality = 0
-        self.current_quality = self.__get_current_quality()
+        self.current_quality = self.get_current_quality()
         self.start_quality = self.current_quality
 
         logging.info("SIMULATION")
@@ -221,12 +221,12 @@ class MetareasoningEnv(gym.Env):
 
     def get_observation(self):
         return np.array([
-            np.float32(self.__get_current_reward_distance()), 
-            np.float32(self.__get_num_close_rewards()), 
-            np.float32(self.__face_check_goals()),
-            np.float32(self.__get_entropy_of_abstract_successor_distribution()),
-            np.float32(self.__get_abstract_occupancy_frequency(self.current_abstract_state)), 
-            np.float32(self.__is_k_step_reachable())
+            np.float32(self.get_current_reward_distance()), 
+            np.float32(self.get_num_close_rewards()), 
+            np.float32(self.face_check_goals()),
+            np.float32(self.get_entropy_of_abstract_successor_distribution()),
+            np.float32(self.get_abstract_occupancy_frequency(self.current_abstract_state)), 
+            np.float32(self.is_k_step_reachable())
         ])
     
     def get_reward(self):
@@ -252,7 +252,7 @@ class MetareasoningEnv(gym.Env):
             'decisions': [decision['expansion_strategy'] for decision in decisions]
         }
 
-    def __get_exact_values(self):
+    def get_exact_values(self):
         states = self.ground_memory_mdp.states
         actions = self.ground_memory_mdp.actions
         rewards = self.ground_memory_mdp.rewards
@@ -275,7 +275,7 @@ class MetareasoningEnv(gym.Env):
 
         return {state: values[state] for state in states}
 
-    def __get_approximate_values(self, states):
+    def get_approximate_values(self, states):
         monte_carlo_value_container = {state: [] for state in states}
 
         for state in states:
@@ -292,34 +292,44 @@ class MetareasoningEnv(gym.Env):
 
         return {state: statistics.mean(monte_carlo_value_container[state]) for state in states}
 
-    # TODO Improve this with a given state and its reachability X
-    # TODO Improve this with the expected point of interest weather X
-    # TODO Improve this with discounting X
-    def __get_maximum_value(self):
-        average_reward = [1, 4, 7, 10] / earth_observation_mdp.VISIBILITY_FIDELITY
+    def get_maximum_value(self):
+        point_of_interest_locations = list(self.ground_mdp.point_of_interest_description.keys())
+        point_of_interest_columns = set([location[1] for location in point_of_interest_locations])
 
-        maximum_photo_count = (HORIZON / STATE_WIDTH) * POINTS_OF_INTEREST
+        image_rewards = []
+        for weather_status in range(earth_observation_mdp.VISIBILITY_FIDELITY):
+            point_of_interest_description = {point_of_interest_location: weather_status for point_of_interest_location in point_of_interest_locations}
+            point_of_interest_state = self.ground_mdp.get_state_from_state_factors(point_of_interest_locations[0], point_of_interest_description)
+            image_rewards.append(self.ground_mdp.reward_function(point_of_interest_state, 'IMAGE'))
 
-        return average_reward * maximum_photo_count
+        average_image_reward = sum(image_rewards) / earth_observation_mdp.VISIBILITY_FIDELITY
 
-    def __get_current_quality(self):
+        maximum_value = 0
+        for step in range(HORIZON):
+            column = step % STATE_WIDTH
+            if column in point_of_interest_columns:
+                maximum_value += (GAMMA ** step) * average_image_reward
+
+        return maximum_value
+
+    def get_current_quality(self):
         current_quality = None
 
         if VALUE_FOCUS == 'INITIAL_GROUND_STATE':
-            values = self.__get_exact_values() if VALUE_DETERMINATION == 'EXACT' else self.__get_approximate_values([self.initial_ground_state])
+            values = self.get_exact_values() if VALUE_DETERMINATION == 'EXACT' else self.get_approximate_values([self.initial_ground_state])
             current_quality = values[self.initial_ground_state]
 
         if VALUE_FOCUS == 'SINGLE_DECISION_POINT_GROUND_STATE':
-            values = self.__get_exact_values() if VALUE_DETERMINATION == 'EXACT' else self.__get_approximate_values([self.decision_point_ground_state])
+            values = self.get_exact_values() if VALUE_DETERMINATION == 'EXACT' else self.get_approximate_values([self.decision_point_ground_state])
             current_quality = values[self.decision_point_ground_state]
 
         if VALUE_FOCUS == 'ALL_DECISION_POINT_GROUND_STATES':
-            values = self.__get_exact_values() if VALUE_DETERMINATION == 'EXACT' else self.__get_approximate_values(self.decision_point_ground_states)
+            values = self.get_exact_values() if VALUE_DETERMINATION == 'EXACT' else self.get_approximate_values(self.decision_point_ground_states)
             current_quality = statistics.mean([values[decision_point_ground_state] for decision_point_ground_state in self.decision_point_ground_states])
 
         return current_quality / self.value_normalizer if VALUE_NORMALIZATION else current_quality
 
-    def __get_current_reward_distance(self):
+    def get_current_reward_distance(self):
         current_location, current_weather_status = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
 
         current_reward_distance = float('inf')
@@ -335,7 +345,7 @@ class MetareasoningEnv(gym.Env):
         return float(current_reward_distance / STATE_WIDTH)
 
     # TODO Generalize to reachable points of interest
-    def __get_closest_goal(self):
+    def get_closest_goal(self):
         current_location, current_weather_status = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
 
         minimum_distance = math.inf
@@ -354,10 +364,10 @@ class MetareasoningEnv(gym.Env):
 
         return minimum_distance, minimum_distance_location
 
-    def __is_k_step_reachable(self):
+    def is_k_step_reachable(self):
         current_location, _ = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
 
-        minimum_distance, minimum_distance_location = self.__get_closest_goal()
+        minimum_distance, minimum_distance_location = self.get_closest_goal()
 
         extreme_north = (max(0, (current_location[0] - ABSTRACT_STATE_WIDTH)), (current_location[1] + ABSTRACT_STATE_WIDTH) % STATE_WIDTH)
         extreme_south = (min(STATE_HEIGHT - 1, (current_location[0] + ABSTRACT_STATE_WIDTH)), (current_location[1] + ABSTRACT_STATE_WIDTH) % STATE_WIDTH)
@@ -367,7 +377,7 @@ class MetareasoningEnv(gym.Env):
 
         return True
  
-    def __get_num_close_rewards(self):
+    def get_num_close_rewards(self):
         current_location, current_weather_status = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
 
         num_close_goals = 0
@@ -383,11 +393,11 @@ class MetareasoningEnv(gym.Env):
 
         return float(num_close_goals / POINTS_OF_INTEREST)
 
-    def __face_check_goals(self):
-        minimum_distance, _ = self.__get_closest_goal()
+    def face_check_goals(self):
+        minimum_distance, _ = self.get_closest_goal()
         return 1.0 / (1.0 + abs(minimum_distance - ABSTRACT_STATE_WIDTH))
 
-    def __get_entropy_of_abstract_successor_distribution(self):
+    def get_entropy_of_abstract_successor_distribution(self):
         states = self.abstract_mdp.states()
         action = self.abstract_policy[self.current_abstract_state]
 
@@ -397,10 +407,7 @@ class MetareasoningEnv(gym.Env):
 
         return scipy.stats.entropy(successor_distribution)
 
-    # NOTE Can we get this from the policy/value function without re-solving the problem? 
-    # The only ways I could figure out doing this involved either matrix inverses or 
-    # something that looks like value iteration, which is what I programmed.
-    def __calculate_abstract_occupancy_frequency(self):
+    def calculate_abstract_occupancy_frequency(self):
         start_state_distribution = np.full((len(self.abstract_mdp.states())), 1.0 / len(self.abstract_mdp.states()))
 
         previous_occupancy_frequency = np.zeros(len(self.abstract_mdp.states()))
@@ -427,7 +434,7 @@ class MetareasoningEnv(gym.Env):
 
         return {state: occupancy_frequency[index] for index, state in enumerate(self.abstract_mdp.states())}
 
-    def __get_abstract_occupancy_frequency(self, abstract_state):
+    def get_abstract_occupancy_frequency(self, abstract_state):
         return self.abstract_occupancy_frequency[abstract_state]
 
     # NOTE This relaxes some assumptions from EOD, but also still relies on a bunch of EOD-specific 
@@ -436,9 +443,9 @@ class MetareasoningEnv(gym.Env):
     # to be some general estimate of the number of actions needed to encounter the goal. Also, the 
     # goal being reached will need to be checked within that loop rather than once at the end, since 
     # the agent may reach it part way through the trajectory.
-    def __is_probably_k_step_reachable(self, k, n, m):
+    def is_probably_k_step_reachable(self, k, n, m):
         # NOTE could generate list of "goal" states a different way, or perhaps as an argument to the function instead
-        min_dist, min_dist_loc = self.__get_closest_goal()
+        min_dist, min_dist_loc = self.get_closest_goal()
         possible_states_after_k_arbitrary_actions = []
         for _ in range(n):
             current_state = self.current_ground_state
@@ -509,19 +516,19 @@ def main():
         print("Observation:", observation)
         done = False
         while not done:
-            hard_k_step_reachable = env.__is_k_step_reachable()
+            hard_k_step_reachable = env.is_k_step_reachable()
             print("k-Step Reachable:", hard_k_step_reachable)
         
-            face_check_score = env.__face_check_goals()
+            face_check_score = env.face_check_goals()
             print("Face Check Score", face_check_score)
             
-            num_close_rewards = env.__get_num_close_rewards()
+            num_close_rewards = env.get_num_close_rewards()
             print("Num Close Rewards:", num_close_rewards)
 
-            entropy = env.__get_entropy_of_abstract_successor_distribution()
+            entropy = env.get_entropy_of_abstract_successor_distribution()
             print("Entropy:", entropy)
 
-            occupancy_frequency = env.__get_abstract_occupancy_frequency(env.current_abstract_state)
+            occupancy_frequency = env.get_abstract_occupancy_frequency(env.current_abstract_state)
             print("Occupancy Frequency:", occupancy_frequency)
 
             action = 0 if hard_k_step_reachable else 1
