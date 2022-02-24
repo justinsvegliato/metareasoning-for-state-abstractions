@@ -37,7 +37,7 @@ ABSTRACT_STATE_HEIGHT = 3
 GAMMA = 0.99
 
 # Simulator Settings
-TRAVERSES = 20
+TRAVERSES = 220
 HORIZON = TRAVERSES * STATE_WIDTH
 
 # Time-Dependent Utility Settings
@@ -489,6 +489,11 @@ class MetareasoningEnv(gym.Env):
 
 
 def main():
+    from stable_baselines3 import DQN
+
+    timing_file_name = "timing_results.txt"
+    reward_file_name = "reward_results.txt"
+
     meta_pure_naive_rewards = []
     meta_pure_proactive_rewards = []
     meta_hard_kSR_rewards = []
@@ -510,12 +515,14 @@ def main():
     ground_times = []
 
     
-    for seed in range(3):
+    #TODO: why is kSR beating ground for seed 3?
+
+    for seed in range(100):
         random.seed(seed)
         print("\n\n\n")
-        print("Running instance "+str(i))
+        print("Running instance "+str(seed))
         print("\n\n\n")
-
+        
         ground_mdp = EarthObservationMDP(SIZE, POINTS_OF_INTEREST)
         ground_memory_mdp = cplex_mdp_solver.MemoryMDP(ground_mdp, parallelize=True)
         t0 = time.time()
@@ -538,7 +545,6 @@ def main():
         ground_times.append(total_time)
 
 
-
         # Pure Naive
         env = MetareasoningEnv()
         observation = env.reset()
@@ -553,7 +559,7 @@ def main():
             print("Reward:", reward)
             print("Done:", done)
             total_time += env.time
-            total_reward += reward
+            total_meta_reward += reward
         pure_naive_times.append(total_time)
         meta_pure_naive_rewards.append(total_meta_reward)
         ground_pure_naive_rewards.append(env.ground_reward)
@@ -572,7 +578,7 @@ def main():
             print("Reward:", reward)
             print("Done:", done)
             total_time += env.time
-            total_reward += reward
+            total_meta_reward += reward
         
         pure_proactive_times.append(total_time)
         meta_pure_proactive_rewards.append(total_meta_reward)
@@ -589,47 +595,35 @@ def main():
             #prob_kSR = env.is_probably_kSR(ABSTRACT_STATE_WIDTH, 100, 100)
             #print("SOFT")
             #print(prob_kSR)
-            kSR = env.is_kSR()
+            kSR = env.is_k_step_reachable()
             #print("HARD")
             #print(kSR)
-            new_dist = env.face_check_goals()
-            #print("adj dist")
-            #print(new_dist)
-            num_near = env.num_close_rewards(ABSTRACT_STATE_WIDTH)
-            #print("num near")
-            #print(num_near)
-            entropy = env.entropy_of_abstract_outcome()
-            #print("entropy")
-            #print(entropy)
-            occ_freq = env.get_abstract_occupancy_frequency(env.current_abstract_state)
-            #print("occ freq")
-            #print(occ_freq)
             if kSR:
                 action = 0
-            """
-            hard_k_step_reachable = env.is_k_step_reachable()
-            print("k-Step Reachable:", hard_k_step_reachable)
+
+            #hard_k_step_reachable = env.is_k_step_reachable()
+            #print("k-Step Reachable:", hard_k_step_reachable)
         
-            face_check_score = env.face_check_goals()
-            print("Face Check Score", face_check_score)
+            #face_check_score = env.face_check_goals()
+            #print("Face Check Score", face_check_score)
             
-            num_close_rewards = env.get_num_close_rewards()
-            print("Num Close Rewards:", num_close_rewards)
+            #num_close_rewards = env.get_num_close_rewards()
+            #print("Num Close Rewards:", num_close_rewards)
 
-            entropy = env.get_entropy_of_abstract_successor_distribution()
-            print("Entropy:", entropy)
+            #entropy = env.get_entropy_of_abstract_successor_distribution()
+            #print("Entropy:", entropy)
 
-            occupancy_frequency = env.get_abstract_occupancy_frequency(env.current_abstract_state)
-            print("Occupancy Frequency:", occupancy_frequency)
+            #occupancy_frequency = env.get_abstract_occupancy_frequency(env.current_abstract_state)
+            #print("Occupancy Frequency:", occupancy_frequency)
 
-            action = 0 if hard_k_step_reachable else 1
-            """
+            #action = 0 if hard_k_step_reachable else 1
+
             observation, reward, done, _ = env.step(action)
             print("Observation:", observation)
             print("Reward:", reward)
             print("Done:", done)
             total_time += env.time
-            total_reward += reward
+            total_meta_reward += reward
         
         hard_kSR_times.append(total_time)
         meta_hard_kSR_rewards.append(total_meta_reward)
@@ -639,11 +633,10 @@ def main():
         #ground_soft_kSR_rewards.append(env.ground_reward)
         #meta_soft_kSR_times.append(env.time)
 
-        """
         MODEL_DIRECTORY = 'models'
         MODEL_TAG = 'dqn'
         MODEL_TEMPLATE = '{}/{}-{}'
-        RUN_NAME = 'absurd-dragon-117'
+        RUN_NAME = 'snowy-pyramid-47-[final]'
         MODEL_PATH = '{}/{}-{}'.format(MODEL_DIRECTORY, MODEL_TAG, RUN_NAME)
 
         model = DQN.load(MODEL_PATH)
@@ -655,39 +648,97 @@ def main():
         total_time = 0
         total_meta_reward = 0 
         while not done:
-            action, _ = model.predict(observation, deterministic=DETERMINISTIC)
+            action, _ = model.predict(observation, deterministic=True)
             observation, reward, done, info = env.step(int(action))
             print("Observation:", observation)
             print("Reward:", reward)
             print("Done:", done)
             total_time += env.time
-            total_reward += reward
+            total_meta_reward += reward
     
         dqn_times.append(total_time)
         meta_dqn_rewards.append(total_meta_reward)
         ground_dqn_rewards.append(env.ground_reward)
-        """
+    
+    print(ground_times)
+    print(dqn_times)
+    print(hard_kSR_times)
+    print(pure_naive_times)
+    print(pure_proactive_times)
+    
     print(ground_ground_rewards)
+    print(ground_dqn_rewards)
     print(ground_hard_kSR_rewards)
     print(ground_pure_naive_rewards)
     print(ground_pure_proactive_rewards)
 
+    #ground_ground_rewards = [149.0, 283.0, 235.0]
+    #ground_dqn_rewards = [126.0, 144.0, 116.0]
+    #ground_hard_kSR_rewards = [131.0, 235.0, 265.0]
+    #ground_pure_naive_rewards = [137.0, 255.0, 104.0]
+    #ground_pure_proactive_rewards = [92.0, 140.0, 231.0]
+
     for i in range(len(ground_hard_kSR_rewards)):
         ground_hard_kSR_rewards[i] = ground_hard_kSR_rewards[i] / ground_ground_rewards[i]
-    #for i in range(len(ground_dqn_rewards)):
-        #ground_dqn_rewards[i] = ground_hard_kSR_rewards[i] / ground_ground_rewards[i]
+    for i in range(len(ground_dqn_rewards)):
+        ground_dqn_rewards[i] = ground_dqn_rewards[i] / ground_ground_rewards[i]
     for i in range(len(ground_pure_naive_rewards)):
         ground_pure_naive_rewards[i] = ground_pure_naive_rewards[i] / ground_ground_rewards[i]
     for i in range(len(ground_pure_proactive_rewards)):
         ground_pure_proactive_rewards[i] = ground_pure_proactive_rewards[i] / ground_ground_rewards[i]
 
 
+    print(ground_dqn_rewards)
     print(ground_hard_kSR_rewards)
     print(ground_pure_naive_rewards)
     print(ground_pure_proactive_rewards)
 
 
-    #TODO: write everything to a file
+    #TODO: make this more re-usable
+    #from os.path import exists
+    #if exists(timing_file_name):
+        
+
+    reward_file = open(reward_file_name, "a")
+    reward_file.write(str(ground_ground_rewards))
+    reward_file.write("\n")
+    reward_file.write(str(ground_dqn_rewards))
+    reward_file.write("\n")
+    reward_file.write(str(ground_hard_kSR_rewards))
+    reward_file.write("\n")
+    reward_file.write(str(ground_pure_naive_rewards))
+    reward_file.write("\n")
+    reward_file.write(str(ground_pure_proactive_rewards))
+    reward_file.close()
+
+
+    time_file = open(timing_file_name, "a")
+    time_file.write(str(ground_times))
+    time_file.write("\n")
+    time_file.write(str(dqn_times))
+    time_file.write("\n")
+    time_file.write(str(hard_kSR_times))
+    time_file.write("\n")
+    time_file.write(str(pure_naive_times))
+    time_file.write("\n")
+    time_file.write(str(pure_proactive_times))
+    time_file.close()
+
+
+
+
+
+
+
+
+
+
+
+    #open and read the file after the appending:
+    #f = open("demofile2.txt", "r")
+    #print(f.read()) 
+
+
     #TODO: read everything from file
 
 
@@ -695,9 +746,10 @@ def main():
     # Plot a histogram
     figure = plt.figure(figsize=(7, 3))
     #bins = np.arange(0.4, 1.01, 0.01)
-    plt.hist(ground_pure_naive_rewards, density=True, alpha=0.5, histtype='stepfilled', cumulative=False, label='Pure Naive Strategy')
-    plt.hist(ground_pure_proactive_rewards, density=True, alpha=0.5, histtype='stepfilled', cumulative=False, label='Pure Proactive Strategy')
-    plt.hist(ground_hard_kSR_rewards, density=True, alpha=0.5, histtype='stepfilled', cumulative=False, label='hard kSR Strategy')
+    plt.hist(ground_pure_naive_rewards, alpha=0.5, label='Pure Naive Strategy')
+    plt.hist(ground_pure_proactive_rewards, alpha=0.5, label='Pure Proactive Strategy')
+    plt.hist(ground_hard_kSR_rewards, alpha=0.5, label='hard kSR Strategy')
+    plt.hist(ground_dqn_rewards, alpha=0.5, label='dqn Strategy')
     plt.xlabel('relative reward earned', fontsize=17)
     plt.ylabel('ylabel', fontsize=17)
     plt.legend(loc='upper left', handletextpad=0.3, columnspacing=0.6, labelspacing=0.15)
@@ -711,9 +763,11 @@ def main():
     # Plot a histogram
     figure = plt.figure(figsize=(7, 3))
     #bins = np.arange(0.4, 1.01, 0.01)
-    plt.hist(pure_naive_times, density=True, alpha=0.5, histtype='stepfilled', cumulative=False, label='Pure Naive Strategy')
-    plt.hist(pure_proactive_times, density=True, alpha=0.5, histtype='stepfilled', cumulative=False, label='Pure Proactive Strategy')
-    plt.hist(hard_kSR_times, density=True, alpha=0.5, histtype='stepfilled', cumulative=False, label='hard kSR Strategy')
+    plt.hist(pure_naive_times, alpha=0.5, label='Pure Naive Strategy')
+    plt.hist(pure_proactive_times, alpha=0.5, label='Pure Proactive Strategy')
+    plt.hist(hard_kSR_times, alpha=0.5, label='hard kSR Strategy')
+    plt.hist(dqn_times, alpha=0.5, label='dqn Strategy')
+    plt.hist(ground_times, alpha=0.5, label='Exact Solver')
     plt.xlabel('times', fontsize=17)
     plt.ylabel('ylabel', fontsize=17)
     plt.legend(loc='upper left', handletextpad=0.3, columnspacing=0.6, labelspacing=0.15)
@@ -722,7 +776,6 @@ def main():
     FILENAME = 'times.pdf'
     figure.savefig(FILENAME, bbox_inches="tight")
     plt.show()
-
 
     
     #TODO: run the experiments
