@@ -5,6 +5,7 @@ import time
 import random
 import statistics
 from scipy.stats import entropy
+import matplotlib.pyplot as plt
 
 import gym
 import numpy as np
@@ -158,7 +159,7 @@ class MetareasoningEnv(gym.Env):
 
         while self.current_ground_state in self.solved_ground_states and not self.__get_done():
             self.current_action = self.ground_policy_cache[self.current_ground_state]
-
+            self.ground_reward += self.ground_mdp.reward_function(self.current_ground_state, self.current_action)
             logging.info(">>>> Ground State: [%s] | Abstract State: [%s] | Action: [%s]", self.current_ground_state, self.current_abstract_state, self.current_action)
             printer.print_earth_observation_policy(self.ground_mdp, current_ground_state=self.current_ground_state, expanded_ground_states=self.abstract_mdp.get_ground_states([self.current_abstract_state]), ground_policy_cache=self.ground_policy_cache)
 
@@ -226,6 +227,9 @@ class MetareasoningEnv(gym.Env):
         self.current_expansions = 0
         self.current_expansion_ratio = self.__get_current_expansion_ratio()
         self.current_reward_distance = self.__get_current_reward_distance()
+
+        self.time = 0
+        self.ground_reward = 0
 
         logging.info("SIMULATION")
         logging.info(">>>> Ground State: [%s] | Abstract State: [%s] | Action: [%s]", self.current_ground_state, self.current_abstract_state, self.current_action)
@@ -483,53 +487,97 @@ def main():
     meta_pure_proactive_rewards = []
     meta_hard_kSR_rewards = []
     meta_soft_kSR_rewards = []
+    meta_dqn_rewards = []
     
     ground_pure_naive_rewards = []
     ground_pure_proactive_rewards = []
     ground_hard_kSR_rewards = []
     ground_soft_kSR_rewards = []
+    ground_dqn_rewards = []
+    ground_ground_rewards = []
     
-    meta_pure_naive_times = []
-    meta_pure_proactive_times = []
-    meta_hard_kSR_times = []
-    meta_soft_kSR_times = []
-    
-    for i in range(10):
-        random.seed(i)
+    pure_naive_times = []
+    pure_proactive_times = []
+    hard_kSR_times = []
+    soft_kSR_times = []
+    dqn_times = []
+    ground_times = []
 
+    
+    for i in range(3):
+        random.seed(i)
+        print("\n\n\n")
+        print("Running instance "+str(i))
+        print("\n\n\n")
+
+        ground_mdp = EarthObservationMDP(SIZE, POINTS_OF_INTEREST)
+        ground_memory_mdp = cplex_mdp_solver.MemoryMDP(ground_mdp, parallelize=True)
+        t0 = time.time()
+        solution = cplex_mdp_solver.solve(ground_mdp, GAMMA)
+        tf = time.time()
+        policy = utils.get_policy(solution['values'], ground_mdp, GAMMA)
+        
+        initial_location = (0, 0)
+        initial_point_of_interest_description = {key: earth_observation_mdp.MAX_VISIBILITY for key in ground_mdp.point_of_interest_description}
+        initial_ground_state = ground_mdp.get_state_from_state_factors(initial_location, initial_point_of_interest_description)
+        total_time = tf - t0
+        total_ground_reward = 0
+        current_state = initial_ground_state
+        for _ in range(HORIZON): 
+            action = policy[current_state]
+            total_ground_reward += ground_mdp.reward_function(current_state, action)
+            current_state = utils.get_successor_state(current_state, action, ground_mdp)
+
+        ground_ground_rewards.append(total_ground_reward)
+        ground_times.append(total_time)
+
+
+
+        # Pure Naive
         env = MetareasoningEnv()
         observation = env.reset()
         print("Observation:", observation)
         done = False
+        total_time = 0
+        total_meta_reward = 0 
         while not done:
             action = 0
             observation, reward, done, _ = env.step(action)
             print("Observation:", observation)
             print("Reward:", reward)
             print("Done:", done)
-            meta_pure_naive_rewards.append(reward)
-            ground_pure_naive_rewards.append(reward)
-            meta_pure_naive_times.append(env.time)
+            total_time += env.time
+            total_reward += reward
+        pure_naive_times.append(total_time)
+        meta_pure_naive_rewards.append(total_meta_reward)
+        ground_pure_naive_rewards.append(env.ground_reward)
 
-
+        # Pure Proactive
         env = MetareasoningEnv()
         observation = env.reset()
         print("Observation:", observation)
         done = False
+        total_time = 0
+        total_meta_reward = 0 
         while not done:
             action = 1
             observation, reward, done, _ = env.step(action)
             print("Observation:", observation)
             print("Reward:", reward)
             print("Done:", done)
-            meta_pure_proactive_rewards.append(reward)
-            ground_pure_proactive_rewards.append(reward)
-            meta_pure_proactive_times.append(env.time)
+            total_time += env.time
+            total_reward += reward
+        
+        pure_proactive_times.append(total_time)
+        meta_pure_proactive_rewards.append(total_meta_reward)
+        ground_pure_proactive_rewards.append(env.ground_reward)
 
         env = MetareasoningEnv()
         observation = env.reset()
         print("Observation:", observation)
         done = False
+        total_time = 0
+        total_meta_reward = 0 
         while not done:
             action = 1
             #prob_kSR = env.is_probably_kSR(ABSTRACT_STATE_WIDTH, 100, 100)
@@ -556,20 +604,105 @@ def main():
             print("Observation:", observation)
             print("Reward:", reward)
             print("Done:", done)
-            meta_hard_kSR_rewards.append(reward)
-            ground_hard_kSR_rewards.append(reward)
-            meta_hard_kSR_times.append(env.time)
+            total_time += env.time
+            total_reward += reward
+        
+        hard_kSR_times.append(total_time)
+        meta_hard_kSR_rewards.append(total_meta_reward)
+        ground_hard_kSR_rewards.append(env.ground_reward)
 
-            meta_soft_kSR_rewards.append(reward)
-            ground_soft_kSR_rewards.append(reward)
-            meta_soft_kSR_times.append(env.time)
+        #soft_kSR_rewards.append(reward)
+        #ground_soft_kSR_rewards.append(env.ground_reward)
+        #meta_soft_kSR_times.append(env.time)
 
-    print("NAIVE")
-    print(sum(pure_naive_rewards))
-    print("PROACTIVE")
-    print(sum(pure_proactive_rewards))
-    print("HARD kSR")
-    print(sum(hard_kSR_rewards))
+        """
+        MODEL_DIRECTORY = 'models'
+        MODEL_TAG = 'dqn'
+        MODEL_TEMPLATE = '{}/{}-{}'
+        RUN_NAME = 'absurd-dragon-117'
+        MODEL_PATH = '{}/{}-{}'.format(MODEL_DIRECTORY, MODEL_TAG, RUN_NAME)
+
+        model = DQN.load(MODEL_PATH)
+ 
+        env = MetareasoningEnv()
+        observation = env.reset()
+        print("Observation:", observation)
+        done = False
+        total_time = 0
+        total_meta_reward = 0 
+        while not done:
+            action, _ = model.predict(observation, deterministic=DETERMINISTIC)
+            observation, reward, done, info = env.step(int(action))
+            print("Observation:", observation)
+            print("Reward:", reward)
+            print("Done:", done)
+            total_time += env.time
+            total_reward += reward
+    
+        dqn_times.append(total_time)
+        meta_dqn_rewards.append(total_meta_reward)
+        ground_dqn_rewards.append(env.ground_reward)
+        """
+    print(ground_ground_rewards)
+    print(ground_hard_kSR_rewards)
+    print(ground_pure_naive_rewards)
+    print(ground_pure_proactive_rewards)
+
+    for i in range(len(ground_hard_kSR_rewards)):
+        ground_hard_kSR_rewards[i] = ground_hard_kSR_rewards[i] / ground_ground_rewards[i]
+    #for i in range(len(ground_dqn_rewards)):
+        #ground_dqn_rewards[i] = ground_hard_kSR_rewards[i] / ground_ground_rewards[i]
+    for i in range(len(ground_pure_naive_rewards)):
+        ground_pure_naive_rewards[i] = ground_pure_naive_rewards[i] / ground_ground_rewards[i]
+    for i in range(len(ground_pure_proactive_rewards)):
+        ground_pure_proactive_rewards[i] = ground_pure_proactive_rewards[i] / ground_ground_rewards[i]
+
+
+    print(ground_hard_kSR_rewards)
+    print(ground_pure_naive_rewards)
+    print(ground_pure_proactive_rewards)
+
+
+    #TODO: write everything to a file
+    #TODO: read everything from file
+
+
+
+    # Plot a histogram
+    figure = plt.figure(figsize=(7, 3))
+    #bins = np.arange(0.4, 1.01, 0.01)
+    plt.hist(ground_pure_naive_rewards, density=True, alpha=0.5, histtype='stepfilled', cumulative=False, label='Pure Naive Strategy')
+    plt.hist(ground_pure_proactive_rewards, density=True, alpha=0.5, histtype='stepfilled', cumulative=False, label='Pure Proactive Strategy')
+    plt.hist(ground_hard_kSR_rewards, density=True, alpha=0.5, histtype='stepfilled', cumulative=False, label='hard kSR Strategy')
+    plt.xlabel('relative reward earned', fontsize=17)
+    plt.ylabel('ylabel', fontsize=17)
+    plt.legend(loc='upper left', handletextpad=0.3, columnspacing=0.6, labelspacing=0.15)
+    plt.tight_layout()
+    plt.margins(x=0.0, y=0.05)
+    FILENAME = 'rewards.pdf'
+    figure.savefig(FILENAME, bbox_inches="tight")
+    plt.show()
+
+
+    # Plot a histogram
+    figure = plt.figure(figsize=(7, 3))
+    #bins = np.arange(0.4, 1.01, 0.01)
+    plt.hist(pure_naive_times, density=True, alpha=0.5, histtype='stepfilled', cumulative=False, label='Pure Naive Strategy')
+    plt.hist(pure_proactive_times, density=True, alpha=0.5, histtype='stepfilled', cumulative=False, label='Pure Proactive Strategy')
+    plt.hist(hard_kSR_times, density=True, alpha=0.5, histtype='stepfilled', cumulative=False, label='hard kSR Strategy')
+    plt.xlabel('times', fontsize=17)
+    plt.ylabel('ylabel', fontsize=17)
+    plt.legend(loc='upper left', handletextpad=0.3, columnspacing=0.6, labelspacing=0.15)
+    plt.tight_layout()
+    plt.margins(x=0.0, y=0.05)
+    FILENAME = 'times.pdf'
+    figure.savefig(FILENAME, bbox_inches="tight")
+    plt.show()
+
+
+    
+    #TODO: run the experiments
+
 
 
 if __name__ == '__main__':
