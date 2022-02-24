@@ -1,8 +1,6 @@
 import random
 import math
 
-# TODO Clean up this file because these functions are esoteric as hell
-
 
 def get_policy(values, mdp, gamma):
     policy = {}
@@ -95,26 +93,23 @@ def get_partitions(l, num_partitions):
 
 
 def get_computation_time(state_space_size, action_space_size):
-    operations = (state_space_size ** 2) * action_space_size
-    return operations
+    return (state_space_size ** 2) * action_space_size
 
 
 def get_intrinisic_value(quality, alpha):
     return alpha * quality
 
 
-def get_linear_cost_of_time(time, beta):
-    return beta * time
+def get_linear_time_cost(computation_time, beta):
+    return beta * computation_time
 
 
-def get_exponential_cost_of_time(time, beta):
-    return math.exp(beta * time)
+def get_exponential_time_cost(computation_time, beta):
+    return math.exp(beta * computation_time) - 1
 
 
-def get_time_dependent_utility(quality, time, alpha, beta, exponential):
-    if exponential:
-        return get_intrinisic_value(quality, alpha) - get_exponential_cost_of_time(time, beta)
+def get_time_dependent_utility(quality, computation_time, alpha, beta, is_exponential):
+    if is_exponential:
+        return get_intrinisic_value(quality, alpha) - get_exponential_time_cost(computation_time, beta)
     
-    return get_intrinisic_value(quality, alpha) - get_linear_cost_of_time(time, beta)
-
-
+    return get_intrinisic_value(quality, alpha) - get_linear_time_cost(computation_time, beta)

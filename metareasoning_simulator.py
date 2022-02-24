@@ -1,3 +1,5 @@
+import logging
+
 import matplotlib.pylab as plt
 import numpy as np
 import seaborn as sns
@@ -5,13 +7,14 @@ from stable_baselines3 import DQN
 
 from metareasoning_env import EXPANSION_STRATEGY_MAP, MetareasoningEnv
 
-RUN_NAME = 'absurd-dragon-117'
+RUN_NAME = 'snowy-pyramid-47'
+RUN_CHECKPOINT = 'final'
 
 MODEL_DIRECTORY = 'models'
 MODEL_TAG = 'dqn'
-MODEL_PATH = '{}/{}-{}'.format(MODEL_DIRECTORY, MODEL_TAG, RUN_NAME)
+MODEL_PATH = '{}/{}-{}-[{}]'.format(MODEL_DIRECTORY, MODEL_TAG, RUN_NAME, RUN_CHECKPOINT)
 
-DETERMINISTIC = False
+DETERMINISTIC = True
 ACTION_FOCUS = 'PROACTIVE'
 
 # TODO Make this consistent across files
@@ -20,8 +23,15 @@ COLUMNS = 4
 WEATHER_STATUSES = 4
 REWARD_ACTION = 'IMAGE'
 
+HEATMAP_DIRECTORY = 'heatmaps'
+HEATMAP_NAME_TEMPLATE = '{}-[{}]-{}-{}'
+HEATMAP_PATH_TEMPLATE = '{}/{}'
+HEATMAPS = 5
 
-def show_heatmap(env, decisions, action_focus):
+logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
+
+
+def save_heatmap(env, decisions, action_focus, heatmap_name):
     abstract_state_tracker = {}
     for abstract_state in env.abstract_mdp.states():
         abstract_state_tracker[abstract_state] = {}
@@ -56,35 +66,49 @@ def show_heatmap(env, decisions, action_focus):
 
     sns.set(font_scale=1.4)
     sns.heatmap(heatmap_matrix, vmin=0.0, vmax=1.0, annot=labels, square=True, linewidths=1.0, cbar_kws={"orientation": "horizontal"}, fmt='')
-    plt.show()
+
+    plt.tight_layout()
+    
+    heatmap_path = HEATMAP_PATH_TEMPLATE.format(HEATMAP_DIRECTORY, heatmap_name)
+    plt.savefig(heatmap_path)
+
+    plt.clf()
 
 
 def main():
     model = DQN.load(MODEL_PATH)
 
-    step = 0
-    decisions = []
+    policy_tag = 'deterministic' if DETERMINISTIC else 'stochastic'
 
-    env = MetareasoningEnv()
+    for index in range(1, HEATMAPS + 1):
+        logging.info('Generating [%s] heatmap [%s]', policy_tag, index)
 
-    observation = env.reset()
-    print("Observation:", observation)
+        heatmap_name = HEATMAP_NAME_TEMPLATE.format(RUN_NAME, RUN_CHECKPOINT, policy_tag, index)
 
-    done = False
-    while not done:
-        action, _ = model.predict(observation, deterministic=DETERMINISTIC)
+        step = 0
+        decisions = []
 
-        observation, reward, done, info = env.step(int(action))
+        env = MetareasoningEnv()
 
+        observation = env.reset()
         print("Observation:", observation)
-        print("Reward:", reward)
-        print("Done:", done)
 
-        step += 1
+        done = False
+        while not done:
+            action, _ = model.predict(observation, deterministic=DETERMINISTIC)
 
-        decisions.append((info['abstract_state'], info['decisions'][-1]))
+            observation, reward, done, info = env.step(int(action))
 
-    show_heatmap(env, decisions, ACTION_FOCUS)
+            print("Observation:", observation)
+            print("Reward:", reward)
+            print("Done:", done)
+
+            step += 1
+
+            decisions.append((info['abstract_state'], info['decisions'][-1]))
+
+        save_heatmap(env, decisions, ACTION_FOCUS, heatmap_name)
+        logging.info('Generated [%s] heatmap [%s]', policy_tag, index)
 
         
 if __name__ == '__main__':

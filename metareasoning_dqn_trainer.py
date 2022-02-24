@@ -4,7 +4,6 @@ import numpy as np
 import torch as th
 from stable_baselines3 import DQN
 from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.logger import configure
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import (X_TIMESTEPS, load_results, ts2xy)
 from stable_baselines3.dqn.policies import DQNPolicy
@@ -19,13 +18,13 @@ INFO_KEYWORDS = ('ground_state', 'abstract_state', 'decisions')
 
 CONFIG = {
     # The total number of time steps [Default = None]
-    'total_timesteps': 5000,
+    'total_timesteps': 20000,
     # The learning rate [Default = 0.0001]
     'learning_rate': 0.0001,
     # The size of the experience buffer [Default = 1000000]
     'buffer_size': 1000000,
     # The number of steps before gradient updates start [Default = 50000]
-    'learning_starts': 300,
+    'learning_starts': 200,
     # The minibatch size of each gradient update [Default = 32]
     'batch_size': 64,
     # The hard/soft update coefficient (1 for hard updating; 0 for soft updating) [Default = 1]
@@ -33,17 +32,17 @@ CONFIG = {
     # The discount factor [Default = 0.99]
     'gamma': 0.99,
     # The number of steps before each gradient update [Default = 4]
-    'train_freq': 4,
+    'train_freq': 1,
     # The number of gradient steps within each gradient update [Default = 1]
     'gradient_steps': 1,
     # The number of steps before the target network is updated [Default = 10000]
-    'target_update_interval': 500,
+    'target_update_interval': 1000,
     # The fraction of steps over which the exploration probability is reduced [Default = 0.1]
-    'exploration_fraction': 0.1,
+    'exploration_fraction': 0.05,
     # The initial exploration probability [Default = 1.0]
     'exploration_initial_eps': 1.0,
     # The final exploration probability [Default = 0.05]
-    'exploration_final_eps': 0.05,
+    'exploration_final_eps': 0.1,
     # The maximum value for clipping the gradient in each gradient update [Default = 10]
     'max_grad_norm': 10,
     # The verbosity level [Default = 0]
@@ -59,10 +58,13 @@ ACTION_EPISODE_WINDOW = 10
 
 MODEL_DIRECTORY = 'models'
 MODEL_TAG = 'dqn'
-MODEL_TEMPLATE = '{}/{}-{}'
+MODEL_TEMPLATE = '{}/{}-{}-[{}]'
+MODEL_CHECKPOINT_INTERVAL = 250
+
+ENV = None
 
 
-def get_mean_reward(y):
+def get_mean_episode_reward(y):
     return np.mean(y[-REWARD_EPISODE_WINDOW:])
 
 
@@ -81,7 +83,7 @@ def get_action_probabilities(results):
 
 
 class TrackerCallback(BaseCallback):
-    def __init__(self, project, config, log_directory):
+    def __init__(self, project, config, log_directory, model):
         super(TrackerCallback, self).__init__()
 
         self.run = wandb.init(
@@ -90,6 +92,9 @@ class TrackerCallback(BaseCallback):
         )
 
         self.log_directory = log_directory
+        self.model = model
+
+        self.episodes = 0
 
     def _on_step(self) -> bool:
         global ENV
@@ -101,27 +106,33 @@ class TrackerCallback(BaseCallback):
             x, y = ts2xy(results, X_TIMESTEPS)
 
             if len(x) > 0:
-                mean_reward = get_mean_reward(y)
+                mean_episode_reward = get_mean_episode_reward(y)
                 action_probabilities = get_action_probabilities(results)
 
-                logdict = {
-                    'Training/Reward': mean_reward,
+                log_entry = {
                     'Training/Naive': action_probabilities['NAIVE'],
                     'Training/Proactive': action_probabilities['PROACTIVE'],
-                    'time/episodes': self.model._episode_num,
-                    'rollout/r': ENV.episode_returns[-1],
-                    'rollout/l': ENV.episode_lengths[-1]
+                    'Training/Episodes': self.model._episode_num,
+                    'Training/Episode Reward': mean_episode_reward,
+                    'Training/Episode Length': ENV.episode_lengths[-1],
+                    'Training/Final Quality': ENV.unwrapped.current_quality,
+                    'Training/Start Quality': ENV.unwrapped.start_quality,
+                    'Training/Exploration Rate': self.model.logger.name_to_value['rollout/exploration_rate']
                 }
 
-                replay_data = self.model.replay_buffer.sample(256 , env=self.model._vec_normalize_env)
                 with th.no_grad():
-                    v_pi, _ = self.model.q_net(replay_data.observations).max(dim=1)
-                    av_v_pi = v_pi.mean()
-                    logdict['train/av_value_pi'] = av_v_pi
+                    samples = self.model.replay_buffer.sample(256 , env=self.model._vec_normalize_env)
+                    sampled_values, _ = self.model.q_net(samples.observations).max(dim=1)
+                    average_value = sampled_values.mean()
+                    log_entry['Training/Average Value'] = average_value
 
-                logdict.update(self.model.logger.name_to_value)
+                wandb.log(log_entry, step=self.num_timesteps)
 
-                wandb.log(logdict, step=self.num_timesteps)
+                if self.episodes % MODEL_CHECKPOINT_INTERVAL == 0:
+                    model_path = MODEL_TEMPLATE.format(MODEL_DIRECTORY, MODEL_TAG, self.run.name, self.episodes)
+                    self.model.save(model_path)
+            
+                self.episodes += 1
 
         return True
 
@@ -141,8 +152,6 @@ class CustomDQNPolicy(DQNPolicy):
             # The optimizer [Default = th.optim.Adam]
             optimizer_class=th.optim.Adam
         )
-
-ENV = None
 
 def main():
     global ENV
@@ -168,18 +177,15 @@ def main():
         device=CONFIG['device']
     )
 
-    logger = configure(LOG_DIRECTORY, ['csv', ])
-    model.set_logger(logger)
-
-    tracker_callback = TrackerCallback(PROJECT, CONFIG, LOG_DIRECTORY)
+    tracker_callback = TrackerCallback(PROJECT, CONFIG, LOG_DIRECTORY, model)
 
     model.learn(
         total_timesteps=CONFIG['total_timesteps'],
-        callback=TrackerCallback(PROJECT, CONFIG, LOG_DIRECTORY),
+        callback=tracker_callback,
         log_interval=1
     )
 
-    model_path = MODEL_TEMPLATE.format(MODEL_DIRECTORY, MODEL_TAG, tracker_callback.run.name)
+    model_path = MODEL_TEMPLATE.format(MODEL_DIRECTORY, MODEL_TAG, tracker_callback.run.name, 'final')
     model.save(model_path)
 
 

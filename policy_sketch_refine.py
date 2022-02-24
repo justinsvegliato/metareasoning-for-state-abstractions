@@ -3,15 +3,16 @@ import logging
 import cplex_mdp_solver
 from partially_abstract_mdp import PartiallyAbstractMDP
 
+LOOKAHEAD_MULTIPLIER = 3
+
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
 
-# TODO Verify and move the magic number out of this function
 def is_relevant(ground_mdp, abstract_mdp, current_location, point_of_interest_location):
     vertical_distance = abs(current_location[0] - point_of_interest_location[0])
     horizontal_displacement = point_of_interest_location[1] - current_location[1]
     horizontal_distance = abs(horizontal_displacement) if horizontal_displacement >= 0 else ground_mdp.width() - abs(horizontal_displacement)
-    if vertical_distance > abstract_mdp.abstract_state_height * 3 or horizontal_distance > abstract_mdp.abstract_state_width * 3:
+    if vertical_distance > abstract_mdp.abstract_state_height * LOOKAHEAD_MULTIPLIER or horizontal_distance > abstract_mdp.abstract_state_width * LOOKAHEAD_MULTIPLIER:
         return False
 
     return True
