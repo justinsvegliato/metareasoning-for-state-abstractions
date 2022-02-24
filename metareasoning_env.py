@@ -61,9 +61,15 @@ EXPANSION_STRATEGY_MAP = {
     0: 'NAIVE',
     1: 'PROACTIVE'
 }
+# EXPANSION_STRATEGY_MAP = {
+#     0: 'NAIVE',
+#     1: 'GREEDY',
+#     2: 'PROACTIVE'
+# }
 
 # Logger Initialization
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
+
 
 class MetareasoningEnv(gym.Env):
 
@@ -95,7 +101,7 @@ class MetareasoningEnv(gym.Env):
             ]),
             shape=(6, )
         )
-        self.action_space = spaces.Discrete(2)
+        self.action_space = spaces.Discrete(len(EXPANSION_STRATEGY_MAP))
 
         self.ground_mdp = None
         self.ground_memory_mdp = None
