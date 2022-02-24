@@ -36,7 +36,7 @@ CONFIG = {
     # The number of gradient steps within each gradient update [Default = 1]
     'gradient_steps': 1,
     # The number of steps before the target network is updated [Default = 10000]
-    'target_update_interval': 200,
+    'target_update_interval': 1000,
     # The fraction of steps over which the exploration probability is reduced [Default = 0.1]
     'exploration_fraction': 0.05,
     # The initial exploration probability [Default = 1.0]
