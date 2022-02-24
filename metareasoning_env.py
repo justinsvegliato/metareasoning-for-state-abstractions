@@ -115,6 +115,7 @@ class MetareasoningEnv(gym.Env):
         self.current_computation_time = None
         self.previous_quality = None
         self.current_quality = None
+        self.start_quality = None
 
     def step(self, action):
         logging.info("ENVIRONMENT STEP [%d, %s, %s]", self.current_step, EXPANSION_STRATEGY_MAP[action], self.current_abstract_state)
