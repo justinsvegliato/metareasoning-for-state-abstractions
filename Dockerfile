@@ -11,5 +11,6 @@ RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
 # DOCKER COMMANDS
-# docker build -t metareasoning-for-state-abstractions metareasoning-for-state-abstractions
-# docker run -i -t metareasoning-for-state-abstractions /bin/bash
+# Build Image: docker build -t metareasoning-for-state-abstractions metareasoning-for-state-abstractions
+# Run Container: docker run -i -t metareasoning-for-state-abstractions /bin/bash
+# Delete Image: docker image rm -f metareasoning-for-state-abstractions
