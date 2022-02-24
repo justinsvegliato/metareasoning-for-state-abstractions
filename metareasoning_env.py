@@ -1,12 +1,12 @@
-import logging
 import copy
+import logging
 import math
 import random
 import statistics
-import scipy.stats
 
 import gym
 import numpy as np
+import scipy.stats
 from gym import spaces
 
 import cplex_mdp_solver
@@ -22,7 +22,7 @@ STATE_WIDTH = 12
 STATE_HEIGHT = 6
 SIZE = (STATE_HEIGHT, STATE_WIDTH)
 POINTS_OF_INTEREST = 2
-START_LOCATION = (0, )
+START_LOCATION = (0, 0)
 START_VISIBILITY = earth_observation_mdp.MAX_VISIBILITY
 
 # Abstract MDP Settings
@@ -222,7 +222,7 @@ class MetareasoningEnv(gym.Env):
     def get_observation(self):
         return np.array([
             np.float32(self.__get_current_reward_distance()), 
-            np.float32(self.__get_num_close_rewards(ABSTRACT_STATE_WIDTH)), 
+            np.float32(self.__get_num_close_rewards()), 
             np.float32(self.__face_check_goals()),
             np.float32(self.__get_entropy_of_abstract_successor_distribution()),
             np.float32(self.__get_abstract_occupancy_frequency(self.current_abstract_state)), 
@@ -233,12 +233,14 @@ class MetareasoningEnv(gym.Env):
         # current_time_dependent_utility = utils.get_time_dependent_utility(self.current_quality, self.current_computation_time, ALPHA, BETA, True)
         # previous_time_dependent_utility = utils.get_time_dependent_utility(self.previous_quality, self.previous_computation_time, ALPHA, BETA, True)
         # return current_time_dependent_utility - previous_time_dependent_utility 
+
         current_intrinsic_value = utils.get_intrinisic_value(self.current_quality, ALPHA)
         previous_intrinsic_value = utils.get_intrinisic_value(self.previous_quality, ALPHA)
-        timecost_of_action = utils.get_exponential_cost_of_time(self.current_computation_time, BETA) # (timecost of the current state is the sum of all timecost_of_actions so far)
-        r = current_intrinsic_value - previous_intrinsic_value - timecost_of_action
-        # print("prev", previous_intrinsic_value, "cur", current_intrinsic_value, "rnocost", current_intrinsic_value - previous_intrinsic_value, "tcost", timecost_of_action, "r", r)
-        return r
+
+        # NOTE The time cost of the current state is the sum of all time costs so far
+        time_cost = utils.get_exponential_time_cost(self.current_computation_time, BETA) 
+
+        return current_intrinsic_value - previous_intrinsic_value - time_cost
 
     def get_done(self):
         return self.current_step > HORIZON
@@ -290,22 +292,15 @@ class MetareasoningEnv(gym.Env):
 
         return {state: statistics.mean(monte_carlo_value_container[state]) for state in states}
 
-    # TODO Improve this with a given state and its reachability
-    # TODO Improve this with the expected point of interest weather
-    # TODO Improve this with discounting
+    # TODO Improve this with a given state and its reachability X
+    # TODO Improve this with the expected point of interest weather X
+    # TODO Improve this with discounting X
     def __get_maximum_value(self):
-        states = self.ground_mdp.states()
-        actions = self.ground_mdp.actions()
-
-        maximum_reward = float('-inf')
-        for state in states:
-            for action in actions:
-                reward = self.ground_mdp.reward_function(state, action)
-                maximum_reward = max(maximum_reward, reward)
+        average_reward = [1, 4, 7, 10] / earth_observation_mdp.VISIBILITY_FIDELITY
 
         maximum_photo_count = (HORIZON / STATE_WIDTH) * POINTS_OF_INTEREST
 
-        return maximum_reward * maximum_photo_count
+        return average_reward * maximum_photo_count
 
     def __get_current_quality(self):
         current_quality = None
@@ -339,7 +334,7 @@ class MetareasoningEnv(gym.Env):
 
         return float(current_reward_distance / STATE_WIDTH)
 
-    # TODO This is only for horizontal distance, right?
+    # TODO Generalize to reachable points of interest
     def __get_closest_goal(self):
         current_location, current_weather_status = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
 
@@ -351,7 +346,6 @@ class MetareasoningEnv(gym.Env):
             if key[1] > current_location[1]:
                 distance = key[1] - current_location[1]
             else:
-                # TODO Verify this line with Samer and reference policy_sketch_refine.py
                 distance = (key[1] + STATE_WIDTH) - current_location[1]
 
             if distance < minimum_distance:
@@ -365,19 +359,15 @@ class MetareasoningEnv(gym.Env):
 
         minimum_distance, minimum_distance_location = self.__get_closest_goal()
 
-        # TODO Walk through these lines with Samer - can we break them up?
-        # TODO Why do we use ABSTRACT_STATE_WIDTH twice here?
         extreme_north = (max(0, (current_location[0] - ABSTRACT_STATE_WIDTH)), (current_location[1] + ABSTRACT_STATE_WIDTH) % STATE_WIDTH)
-        extreme_south = (min(STATE_HEIGHT, (current_location[0] + ABSTRACT_STATE_WIDTH)), (current_location[1] + ABSTRACT_STATE_WIDTH) % STATE_WIDTH)
+        extreme_south = (min(STATE_HEIGHT - 1, (current_location[0] + ABSTRACT_STATE_WIDTH)), (current_location[1] + ABSTRACT_STATE_WIDTH) % STATE_WIDTH)
 
         if (abs(extreme_north[0] - minimum_distance_location[0]) > minimum_distance) or (abs(extreme_south[0] - minimum_distance_location[0]) > minimum_distance):
             return False
 
         return True
  
-    # NOTE The parameter k makes most sense as ABSTRACT_STATE_WIDTH
-    # TODO Do we just make this ABSTRACT_STATE_WIDTH?
-    def __get_num_close_rewards(self, k):
+    def __get_num_close_rewards(self):
         current_location, current_weather_status = self.ground_mdp.get_state_factors_from_state(self.current_ground_state)
 
         num_close_goals = 0
@@ -386,27 +376,17 @@ class MetareasoningEnv(gym.Env):
             if key[1] > current_location[1]:
                 distance = key[1] - current_location[1]
             else:
-                # TODO Verify this line with Samer and reference policy_sketch_refine.py
                 distance = (key[1] + STATE_WIDTH) - current_location[1]
 
-            # TODO Verify the range
-            # TODO Less than or equal to?
-            if distance < 2 * k:
+            if distance < 2 * ABSTRACT_STATE_WIDTH:
                 num_close_goals += 1
 
         return float(num_close_goals / POINTS_OF_INTEREST)
 
-    # TODO What does this do? I understand the code, but I don't understand its intuition
-    # Suppose we have a minimum distance of 1 and a state width of 9: 0.1 (we're right in front of it)
-    # Suppose we have a minimum distance of 8 and a state width of 9: 0.5 (we just passed it)
-    # Suppose we have a minimum distance of 9 and a state width of 9: 1.0 (we're on top of it like your mom)
     def __face_check_goals(self):
         minimum_distance, _ = self.__get_closest_goal()
-        return 1.0 / (1.0 + abs(minimum_distance - STATE_WIDTH))
+        return 1.0 / (1.0 + abs(minimum_distance - ABSTRACT_STATE_WIDTH))
 
-    # TODO What's the expected behavior here?
-    # TODO If we have [0.33, 0.33, 0.33], we get 0.0
-    # TODO If we have [1.0, 0.0, 0.0], we get 0.63
     def __get_entropy_of_abstract_successor_distribution(self):
         states = self.abstract_mdp.states()
         action = self.abstract_policy[self.current_abstract_state]
@@ -421,7 +401,6 @@ class MetareasoningEnv(gym.Env):
     # The only ways I could figure out doing this involved either matrix inverses or 
     # something that looks like value iteration, which is what I programmed.
     def __calculate_abstract_occupancy_frequency(self):
-        # TODO Can we just initialize occupancy_frequency directly?
         start_state_distribution = np.full((len(self.abstract_mdp.states())), 1.0 / len(self.abstract_mdp.states()))
 
         previous_occupancy_frequency = np.zeros(len(self.abstract_mdp.states()))
@@ -429,7 +408,6 @@ class MetareasoningEnv(gym.Env):
 
         epsilon = 0.001
         
-        # TODO Can we simplify the condition of this while loop?
         done = False
         while not done:
             # NOTE These are start state probabilities that could change if we wanted to
@@ -438,7 +416,6 @@ class MetareasoningEnv(gym.Env):
             for index, state in enumerate(self.abstract_mdp.states()):
                 action = self.abstract_policy[state]
                 for successor_state_index, successor_state in enumerate(self.abstract_mdp.states()):
-                    # TODO Confirm this line with Samer
                     occupancy_frequency[successor_state_index] += previous_occupancy_frequency[index] * GAMMA * self.abstract_mdp.transition_function(state, action, successor_state)
 
             maximum_difference = np.max(np.abs(np.subtract(previous_occupancy_frequency, occupancy_frequency)))
@@ -494,6 +471,7 @@ class MetareasoningEnv(gym.Env):
 
         return kSR_prob 
 
+
 def main():
     pure_naive_rewards = []
     pure_proactive_rewards = []
@@ -534,11 +512,10 @@ def main():
             hard_k_step_reachable = env.__is_k_step_reachable()
             print("k-Step Reachable:", hard_k_step_reachable)
         
-            # new_dist = env.__face_check_goals()
-            # print("adj dist")
-            # print(new_dist)
+            face_check_score = env.__face_check_goals()
+            print("Face Check Score", face_check_score)
             
-            num_close_rewards = env.__get_num_close_rewards(ABSTRACT_STATE_WIDTH)
+            num_close_rewards = env.__get_num_close_rewards()
             print("Num Close Rewards:", num_close_rewards)
 
             entropy = env.__get_entropy_of_abstract_successor_distribution()
