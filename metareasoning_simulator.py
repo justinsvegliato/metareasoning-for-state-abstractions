@@ -69,7 +69,7 @@ def save_heatmap(env, decisions, heatmap_name):
     sns.set_style({'font.family':'serif', 'font.serif':'Times New Roman'})
     plt.rcParams["hatch.linewidth"] = 4
 
-    axis = sns.heatmap(heatmap_matrix, vmin=0.0, vmax=1.0, linewidths=1.0, cbar_kws={'orientation': 'horizontal'}, annot=True, fmt='.0%', yticklabels=['N', 'G', 'P'] * ROWS, xticklabels=False, cmap=sns.diverging_palette(220, 20, as_cmap=True))
+    axis = sns.heatmap(heatmap_matrix, vmin=0.0, vmax=1.0, linewidths=1.0, cbar_kws={'orientation': 'horizontal', 'pad': 0.035}, annot=True, fmt='.0%', yticklabels=['N', 'G', 'P'] * ROWS, xticklabels=False, cmap=sns.diverging_palette(220, 20, as_cmap=True))
     axis.tick_params(labelright=True, rotation=0)
     axis.hlines([row * len(EXPANSION_STRATEGY_MAP) for row in range(1, ROWS)], *axis.get_xlim(), linewidths=4.0, colors='k')
     axis.vlines(range(1, COLUMNS), *axis.get_ylim(), linewidths=4.0, colors='k')
@@ -82,7 +82,7 @@ def save_heatmap(env, decisions, heatmap_name):
     cbar.set_ticklabels(['0%', '100%'])
 
     plt.tight_layout()
-    plt.savefig(HEATMAP_PATH_TEMPLATE.format(HEATMAP_DIRECTORY, heatmap_name), bbox_inches='tight')
+    plt.savefig(HEATMAP_PATH_TEMPLATE.format(HEATMAP_DIRECTORY, heatmap_name + 'test'), bbox_inches='tight')
     plt.clf()
 
 
