@@ -9,7 +9,7 @@ from stable_baselines3 import DQN
 from metareasoning_env import EXPANSION_STRATEGY_MAP, MetareasoningEnv
 
 RUN_NAME = 'rural-feather-155'
-RUN_CHECKPOINT = '600'
+RUN_CHECKPOINT = 'final'
 
 MODEL_DIRECTORY = 'models'
 MODEL_TAG = 'dqn'
@@ -82,7 +82,7 @@ def save_heatmap(env, decisions, heatmap_name):
     cbar.set_ticklabels(['0%', '100%'])
 
     plt.tight_layout()
-    plt.savefig(HEATMAP_PATH_TEMPLATE.format(HEATMAP_DIRECTORY, heatmap_name + 'test'), bbox_inches='tight')
+    plt.savefig(HEATMAP_PATH_TEMPLATE.format(HEATMAP_DIRECTORY, heatmap_name), bbox_inches='tight')
     plt.clf()
 
 
