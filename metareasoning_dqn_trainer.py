@@ -115,8 +115,8 @@ class TrackerCallback(BaseCallback):
                     'Training/Episodes': self.model._episode_num,
                     'Training/Episode Reward': mean_episode_reward,
                     'Training/Episode Length': ENV.episode_lengths[-1],
-                    'Training/Final Quality': ENV.unwrapped.current_quality,
-                    'Training/Start Quality': ENV.unwrapped.start_quality,
+                    'Training/Final Quality': ENV.unwrapped.final_qualities_history[-1],
+                    'Training/Start Quality': ENV.unwrapped.start_qualities_history[-1],
                     'Training/Exploration Rate': self.model.logger.name_to_value['rollout/exploration_rate']
                 }
 
