@@ -42,7 +42,7 @@ HORIZON = TRAVERSES * STATE_WIDTH
 
 # Time-Dependent Utility Settings
 ALPHA = 1
-BETA = 0.000002
+BETA = 0.000001
 
 # Policy Quality Calculation Settings
 VALUE_FOCUS = 'INITIAL_GROUND_STATE'
@@ -57,15 +57,15 @@ ACTION_MAP = {
     'SOUTH': 2,
     'IMAGE': 3
 }
-EXPANSION_STRATEGY_MAP = {
-    0: 'NAIVE',
-    1: 'PROACTIVE'
-}
 # EXPANSION_STRATEGY_MAP = {
 #     0: 'NAIVE',
-#     1: 'GREEDY',
-#     2: 'PROACTIVE'
+#     1: 'PROACTIVE'
 # }
+EXPANSION_STRATEGY_MAP = {
+    0: 'NAIVE',
+    1: 'GREEDY',
+    2: 'PROACTIVE'
+}
 
 # Logger Initialization
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
