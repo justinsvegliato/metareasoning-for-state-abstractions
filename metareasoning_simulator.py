@@ -30,7 +30,7 @@ HEATMAPS = 5
 
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
-
+# https://stackoverflow.com/questions/54397334/annotated-heatmap-with-multiple-color-schemes
 def save_heatmap(env, decisions, heatmap_name):
     abstract_state_tracker = {}
     for abstract_state in env.abstract_mdp.states():
