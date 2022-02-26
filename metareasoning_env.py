@@ -125,8 +125,8 @@ class MetareasoningEnv(gym.Env):
         self.previous_quality = None
         self.current_quality = None
         self.start_quality = None
-        self.start_qualities_history = [] # up to previous episode
-        self.final_qualities_history = [] # up to previouse episode
+        self.start_qualities_history = []
+        self.final_qualities_history = []
 
     def step(self, action):
         logging.info("ENVIRONMENT STEP [%d, %s, %s]", self.current_step, EXPANSION_STRATEGY_MAP[action], self.current_abstract_state)
@@ -182,6 +182,7 @@ class MetareasoningEnv(gym.Env):
         if done:
             self.start_qualities_history.append(self.start_quality)
             self.final_qualities_history.append(self.current_quality)
+
         return self.get_observation(), self.get_reward(), done, self.get_info(self.decision_point_ground_state, self.decision_point_abstract_state, self.decisions)
 
     def reset(self):
