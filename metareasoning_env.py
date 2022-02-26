@@ -42,7 +42,8 @@ HORIZON = TRAVERSES * STATE_WIDTH
 
 # Time-Dependent Utility Settings
 ALPHA = 1
-BETA = 0.000001
+#BETA = 0.000001
+BETA = 0.000002
 
 # Policy Quality Calculation Settings
 VALUE_FOCUS = 'INITIAL_GROUND_STATE'
@@ -539,8 +540,8 @@ def main():
     individual_soft_kSR_times = []
     individual_dqn_times = []
     
-    num_seeds = 50
-
+    num_seeds = 1
+    
     # Ground MDP
     for seed in range(num_seeds):
         random.seed(seed)
@@ -569,7 +570,8 @@ def main():
 
         ground_ground_rewards.append(total_ground_reward)
         ground_times.append(total_time)
-
+    
+    """
     # Pure Naive
     for seed in range(num_seeds):
         random.seed(seed)
@@ -718,8 +720,7 @@ def main():
         #soft_kSR_rewards.append(reward)
         #ground_soft_kSR_rewards.append(env.ground_reward)
         #meta_soft_kSR_times.append(env.time)
-    
-    """    
+    """
     
     for seed in range(num_seeds):
         random.seed(seed)
@@ -756,7 +757,6 @@ def main():
         dqn_times.append(total_time)
         meta_dqn_rewards.append(total_meta_reward)
         ground_dqn_rewards.append(env.ground_reward)
-    """    
 
 
     #TODO: fix bug where reward is still too big???
@@ -777,8 +777,8 @@ def main():
     print(ground_pure_greedy_rewards)
     print(ground_pure_proactive_rewards)
 
-    #for i in range(len(ground_dqn_rewards)):
-    #    ground_dqn_rewards[i] = ground_dqn_rewards[i] / ground_ground_rewards[i]
+    for i in range(len(ground_dqn_rewards)):
+        ground_dqn_rewards[i] = ground_dqn_rewards[i] / ground_ground_rewards[i]
     for i in range(len(ground_pure_naive_rewards)):
         ground_pure_naive_rewards[i] = ground_pure_naive_rewards[i] / ground_ground_rewards[i]
     for i in range(len(ground_pure_greedy_rewards)):

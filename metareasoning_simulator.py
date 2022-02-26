@@ -9,7 +9,7 @@ from stable_baselines3 import DQN
 from metareasoning_env import EXPANSION_STRATEGY_MAP, MetareasoningEnv
 
 RUN_NAME = 'rural-feather-155'
-RUN_CHECKPOINT = 'final'
+RUN_CHECKPOINT = 'final' 
 
 MODEL_DIRECTORY = 'models'
 MODEL_TAG = 'dqn'
@@ -26,7 +26,7 @@ REWARD_ACTION = 'IMAGE'
 HEATMAP_DIRECTORY = 'heatmaps'
 HEATMAP_NAME_TEMPLATE = '{}-[{}]-{}-{}'
 HEATMAP_PATH_TEMPLATE = '{}/{}'
-HEATMAPS = 5
+HEATMAPS = 1
 
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
@@ -87,6 +87,7 @@ def save_heatmap(env, decisions, heatmap_name):
 
 
 def main():
+    print(MODEL_PATH)
     model = DQN.load(MODEL_PATH)
 
     policy_tag = 'deterministic' if DETERMINISTIC else 'stochastic'
