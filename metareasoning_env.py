@@ -137,7 +137,7 @@ class MetareasoningEnv(gym.Env):
         solution = policy_sketch_refine.solve(self.ground_mdp, self.current_ground_state, self.abstract_mdp, self.current_abstract_state, EXPANSION_STRATEGY_MAP[action], GAMMA)
         #tf = time.time()
         #self.time = tf - t0
-        self.time = len(solution['values']) * len(solution['values']) * len(ACTION_MAP)
+        self.time = solution['state_space_size'] * solution['state_space_size'] * solution['action_space_size']
 
         new_solved_ground_values = utils.get_values(solution['values'], self.ground_mdp, self.abstract_mdp)
         new_solved_ground_states = self.abstract_mdp.get_ground_states([self.current_abstract_state])
@@ -560,7 +560,7 @@ def main():
         initial_point_of_interest_description = {key: earth_observation_mdp.MAX_VISIBILITY for key in ground_mdp.point_of_interest_description}
         initial_ground_state = ground_mdp.get_state_from_state_factors(initial_location, initial_point_of_interest_description)
         #total_time = tf - t0
-        total_time = len(solution['values']) * len(solution['values']) * len(ACTION_MAP)
+        total_time = solution['state_space_size'] * solution['state_space_size'] * solution['action_space_size']
         total_ground_reward = 0
         current_state = initial_ground_state
         for _ in range(HORIZON): 
@@ -571,7 +571,6 @@ def main():
         ground_ground_rewards.append(total_ground_reward)
         ground_times.append(total_time)
     
-    """
     # Pure Naive
     for seed in range(num_seeds):
         random.seed(seed)
@@ -720,7 +719,6 @@ def main():
         #soft_kSR_rewards.append(reward)
         #ground_soft_kSR_rewards.append(env.ground_reward)
         #meta_soft_kSR_times.append(env.time)
-    """
     
     for seed in range(num_seeds):
         random.seed(seed)
@@ -733,6 +731,7 @@ def main():
         MODEL_TEMPLATE = '{}/{}-{}'
         RUN_NAME = 'snowy-pyramid-47-[final]'
         MODEL_PATH = '{}/{}-{}'.format(MODEL_DIRECTORY, MODEL_TAG, RUN_NAME)
+        MODEL_PATH = 'models/samer'
 
         model = DQN.load(MODEL_PATH)
  
