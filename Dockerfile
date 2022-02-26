@@ -7,6 +7,8 @@ RUN chmod +x cplex_studio1210.linux-x86-64.bin
 
 COPY . .
 
+RUN apt-get update
+RUN apt-get -y install vim
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
