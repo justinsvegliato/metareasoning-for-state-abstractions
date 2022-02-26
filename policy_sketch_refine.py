@@ -3,16 +3,17 @@ import logging
 import cplex_mdp_solver
 from partially_abstract_mdp import PartiallyAbstractMDP
 
-LOOKAHEAD_MULTIPLIER = 3
+GREEDY_LOOKAHEAD_MULTIPLIER = 3
+PROACTIVE_LOOKAHEAD_MULTIPLIER = 3
 
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
 
-def is_relevant(ground_mdp, abstract_mdp, current_location, point_of_interest_location):
+def is_relevant(ground_mdp, abstract_mdp, current_location, point_of_interest_location, lookahead_multiplier):
     vertical_distance = abs(current_location[0] - point_of_interest_location[0])
     horizontal_displacement = point_of_interest_location[1] - current_location[1]
     horizontal_distance = abs(horizontal_displacement) if horizontal_displacement >= 0 else ground_mdp.width() - abs(horizontal_displacement)
-    if vertical_distance > abstract_mdp.abstract_state_height * LOOKAHEAD_MULTIPLIER or horizontal_distance > abstract_mdp.abstract_state_width * LOOKAHEAD_MULTIPLIER:
+    if vertical_distance > abstract_mdp.abstract_state_height * lookahead_multiplier or horizontal_distance > abstract_mdp.abstract_state_width * lookahead_multiplier:
         return False
 
     return True
@@ -22,7 +23,7 @@ def get_greedy_point_of_interest_abstract_states(ground_mdp, abstract_mdp, curre
     point_of_interest_abstract_states = set()
 
     for point_of_interest_location in current_weather_status:
-        if not is_relevant(ground_mdp, abstract_mdp, current_location, point_of_interest_location):
+        if not is_relevant(ground_mdp, abstract_mdp, current_location, point_of_interest_location, GREEDY_LOOKAHEAD_MULTIPLIER):
             continue
 
         point_of_interest_ground_state = ground_mdp.get_state_from_state_factors(point_of_interest_location, current_weather_status)
@@ -36,7 +37,7 @@ def get_proactive_point_of_interest_abstract_states(ground_mdp, abstract_mdp, cu
     point_of_interest_abstract_states = set()
 
     for point_of_interest_location in current_weather_status:
-        if not is_relevant(ground_mdp, abstract_mdp, current_location, point_of_interest_location):
+        if not is_relevant(ground_mdp, abstract_mdp, current_location, point_of_interest_location, PROACTIVE_LOOKAHEAD_MULTIPLIER):
             continue
 
         x_range = []

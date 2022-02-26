@@ -42,7 +42,7 @@ HORIZON = TRAVERSES * STATE_WIDTH
 
 # Time-Dependent Utility Settings
 ALPHA = 1
-BETA = 0.000001
+BETA = 0.000002
 
 # Policy Quality Calculation Settings
 VALUE_FOCUS = 'INITIAL_GROUND_STATE'
