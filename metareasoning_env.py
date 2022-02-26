@@ -42,7 +42,7 @@ HORIZON = TRAVERSES * STATE_WIDTH
 
 # Time-Dependent Utility Settings
 ALPHA = 1
-BETA = 0.000002
+BETA = 0.000001
 
 # Policy Quality Calculation Settings
 VALUE_FOCUS = 'INITIAL_GROUND_STATE'
@@ -57,6 +57,10 @@ ACTION_MAP = {
     'SOUTH': 2,
     'IMAGE': 3
 }
+# EXPANSION_STRATEGY_MAP = {
+#     0: 'NAIVE',
+#     1: 'PROACTIVE'
+# }
 EXPANSION_STRATEGY_MAP = {
     0: 'NAIVE',
     1: 'GREEDY',
@@ -65,6 +69,7 @@ EXPANSION_STRATEGY_MAP = {
 
 # Logger Initialization
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
+
 
 class MetareasoningEnv(gym.Env):
 
@@ -96,7 +101,7 @@ class MetareasoningEnv(gym.Env):
             ]),
             shape=(6, )
         )
-        self.action_space = spaces.Discrete(2)
+        self.action_space = spaces.Discrete(len(EXPANSION_STRATEGY_MAP))
 
         self.ground_mdp = None
         self.ground_memory_mdp = None
@@ -119,6 +124,9 @@ class MetareasoningEnv(gym.Env):
         self.current_computation_time = None
         self.previous_quality = None
         self.current_quality = None
+        self.start_quality = None
+        self.start_qualities_history = []
+        self.final_qualities_history = []
 
     def step(self, action):
         logging.info("ENVIRONMENT STEP [%d, %s, %s]", self.current_step, EXPANSION_STRATEGY_MAP[action], self.current_abstract_state)
@@ -171,7 +179,12 @@ class MetareasoningEnv(gym.Env):
         self.previous_quality = self.current_quality
         self.current_quality = self.get_current_quality()
 
-        return self.get_observation(), self.get_reward(), self.get_done(), self.get_info(self.decision_point_ground_state, self.decision_point_abstract_state, self.decisions)
+        done = self.get_done()
+        if done:
+            self.start_qualities_history.append(self.start_quality)
+            self.final_qualities_history.append(self.current_quality)
+
+        return self.get_observation(), self.get_reward(), done, self.get_info(self.decision_point_ground_state, self.decision_point_abstract_state, self.decisions)
 
     def reset(self):
         logging.info("ENVIRONMENT RESET")

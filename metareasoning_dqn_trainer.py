@@ -110,15 +110,16 @@ class TrackerCallback(BaseCallback):
                 action_probabilities = get_action_probabilities(results)
 
                 log_entry = {
-                    'Training/Naive': action_probabilities['NAIVE'],
-                    'Training/Proactive': action_probabilities['PROACTIVE'],
                     'Training/Episodes': self.model._episode_num,
                     'Training/Episode Reward': mean_episode_reward,
                     'Training/Episode Length': ENV.episode_lengths[-1],
-                    'Training/Final Quality': ENV.unwrapped.current_quality,
-                    'Training/Start Quality': ENV.unwrapped.start_quality,
+                    'Training/Final Quality': ENV.unwrapped.final_qualities_history[-1],
+                    'Training/Start Quality': ENV.unwrapped.start_qualities_history[-1],
                     'Training/Exploration Rate': self.model.logger.name_to_value['rollout/exploration_rate']
                 }
+
+                for expansion_strategy in EXPANSION_STRATEGY_MAP.values():
+                    log_entry[f'Training/{expansion_strategy.title()}'] = action_probabilities[expansion_strategy]
 
                 with th.no_grad():
                     samples = self.model.replay_buffer.sample(256 , env=self.model._vec_normalize_env)
