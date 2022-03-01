@@ -77,7 +77,7 @@ def save_heatmap(env, decisions, heatmap_name):
 
     for row_index, (row, axis, cmap) in enumerate(zip(heatmap_matrix, axes, cmaps)):
         sub_heatmap_matrix = np.reshape(row, (len(row), 1)).T
-        sns.heatmap(sub_heatmap_matrix, vmin=0.0, vmax=1.0, ax=axis, cmap=cmap, linewidths=0.1, cbar=False, yticklabels=False, xticklabels=False, annot=True, fmt='.0%')
+        sns.heatmap(sub_heatmap_matrix, vmin=0.0, vmax=1.0, ax=axis, cmap=cmap, linewidths=0.5, linecolor='0.5', cbar=False, yticklabels=False, xticklabels=False, annot=True, fmt='.0%')
         
         if row_index != 0 and row_index % len(EXPANSION_STRATEGY_MAP) == 0:
             axis.hlines([0, ], *axis.get_xlim(), linewidths=8.0, colors='k')
