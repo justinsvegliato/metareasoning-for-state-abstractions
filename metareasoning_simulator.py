@@ -2,6 +2,7 @@ import logging
 
 import matplotlib.pylab as plt
 import numpy as np
+from pyparsing import col
 import seaborn as sns
 from matplotlib.patches import Rectangle
 from stable_baselines3 import DQN
@@ -30,7 +31,7 @@ HEATMAPS = 1
 
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
-# https://stackoverflow.com/questions/54397334/annotated-heatmap-with-multiple-color-schemes
+
 def save_heatmap(env, decisions, heatmap_name):
     abstract_state_tracker = {}
     for abstract_state in env.abstract_mdp.states():
@@ -42,7 +43,7 @@ def save_heatmap(env, decisions, heatmap_name):
         abstract_state_tracker[abstract_state][action] += 1
 
     heatmap_matrix = np.zeros((len(EXPANSION_STRATEGY_MAP) * ROWS, COLUMNS))
-    reward_locations = set()
+    abstract_reward_locations = set()
 
     for row in range(ROWS):
         for column in range(COLUMNS):
@@ -55,7 +56,7 @@ def save_heatmap(env, decisions, heatmap_name):
 
                 reward = env.abstract_mdp.reward_function(abstract_state, REWARD_ACTION)
                 if reward > 0:
-                    reward_locations.add((column, len(EXPANSION_STRATEGY_MAP) * row))
+                    abstract_reward_locations.add((row, column))
 
             for action_focus_offset, action_focus in enumerate(EXPANSION_STRATEGY_MAP.values()):
                 count = 0
@@ -65,24 +66,34 @@ def save_heatmap(env, decisions, heatmap_name):
 
                 heatmap_matrix[len(EXPANSION_STRATEGY_MAP) * row + action_focus_offset, column] = count / total_count if total_count > 0 else 0
 
-    sns.set(font_scale=1.1)
-    sns.set_style({'font.family':'serif', 'font.serif':'Times New Roman'})
+    plt.figure(figsize=(8, 3))
     plt.rcParams["hatch.linewidth"] = 4
 
-    axis = sns.heatmap(heatmap_matrix, vmin=0.0, vmax=1.0, linewidths=1.0, cbar_kws={'orientation': 'horizontal', 'pad': 0.035}, annot=True, fmt='.0%', yticklabels=['N', 'G', 'P'] * ROWS, xticklabels=False, cmap=sns.diverging_palette(220, 20, as_cmap=True))
-    axis.tick_params(labelright=True, rotation=0)
-    axis.hlines([row * len(EXPANSION_STRATEGY_MAP) for row in range(1, ROWS)], *axis.get_xlim(), linewidths=4.0, colors='k')
-    axis.vlines(range(1, COLUMNS), *axis.get_ylim(), linewidths=4.0, colors='k')
+    sns.set(font_scale=1.1)
+    sns.set_style({'font.family': 'serif', 'font.serif': 'Times New Roman'})
 
-    for reward_location in reward_locations:
-        axis.add_patch(Rectangle(reward_location, 1, 3, facecolor="gray", edgecolor="white", alpha=0.2, hatch=r"//"))
-    
-    cbar = axis.collections[0].colorbar
-    cbar.set_ticks([0, 1])
-    cbar.set_ticklabels(['0%', '100%'])
+    cmaps = ['Blues', 'Reds', 'Greens'] * len(EXPANSION_STRATEGY_MAP)
+    _, axes = plt.subplots(len(EXPANSION_STRATEGY_MAP) * ROWS, 1, figsize=(11, 5), gridspec_kw={'hspace': 0, 'wspace': 0})
 
-    plt.tight_layout()
-    plt.savefig(HEATMAP_PATH_TEMPLATE.format(HEATMAP_DIRECTORY, heatmap_name), bbox_inches='tight')
+    for row_index, (row, axis, cmap) in enumerate(zip(heatmap_matrix, axes, cmaps)):
+        sub_heatmap_matrix = np.reshape(row, (len(row), 1)).T
+        sns.heatmap(sub_heatmap_matrix, vmin=0.0, vmax=1.0, ax=axis, cmap=cmap, linewidths=0.1, cbar=False, yticklabels=False, xticklabels=False, annot=True, fmt='.0%')
+        
+        if row_index != 0 and row_index % len(EXPANSION_STRATEGY_MAP) == 0:
+            axis.hlines([0, ], *axis.get_xlim(), linewidths=8.0, colors='k')
+
+        axis.vlines(range(1, COLUMNS), *axis.get_ylim(), linewidths=4.0, colors='k')
+
+        axis.xaxis.set_ticks([])
+        axis.yaxis.set_ticks([])
+
+        for abstract_column_index in range(COLUMNS):
+            abstract_location = (int(row_index / len(EXPANSION_STRATEGY_MAP)), abstract_column_index)
+            if abstract_location in abstract_reward_locations:
+                adjusted_location = (abstract_column_index, 0)
+                axis.add_patch(Rectangle(adjusted_location, 1, 1, facecolor='gray', edgecolor='white', alpha=0.2, hatch=r"//"))
+
+    plt.savefig(HEATMAP_PATH_TEMPLATE.format(HEATMAP_DIRECTORY, heatmap_name), bbox_inches='tight', pad_inches=0.025)
     plt.clf()
 
 
