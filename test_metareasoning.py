@@ -1,20 +1,14 @@
-from metareasoning_env import MetareasoningEnv
-
-import math
 import random
-import statistics
-import matplotlib.pyplot as plt
 
+import matplotlib.pyplot as plt
 import numpy as np
-import scipy.stats
+from stable_baselines3 import DQN
 
 import cplex_mdp_solver
 import earth_observation_mdp
-import policy_sketch_refine
 import utils
-from earth_observation_abstract_mdp import EarthObservationAbstractMDP
 from earth_observation_mdp import EarthObservationMDP
-from stable_baselines3 import DQN
+from metareasoning_env import MetareasoningEnv
 
 # Ground MDP Settings
 STATE_WIDTH = 12
@@ -44,9 +38,8 @@ EXPANSION_STRATEGY_MAP = {
     1: 'GREEDY',
     2: 'PROACTIVE'
 }
-    
-# 'models/<zip file name>'
-MODEL_PATH = 'models/dqn-snowy-pyramid-47-[final]'
+
+MODEL_PATH = 'models/dqn-rural-feather-155-[final]'
 
 JUST_PLOTTING = False
 
@@ -181,46 +174,46 @@ def testHardKER(seed_min, seed_max):
 
     return ground_rewards, times, individual_times, meta_rewards
 
-def testSoftKER(seed_min, seed_max):
-    times = []
-    meta_rewards = []
-    ground_rewards = []
-    individual_times = []
-    for seed in range(seed_min, seed_max):
-        random.seed(seed)
-        print("\n\n\n")
-        print("Running SOFT KER test, instance "+str(seed))
-        print("\n\n\n")
+# def testSoftKER(seed_min, seed_max):
+#     times = []
+#     meta_rewards = []
+#     ground_rewards = []
+#     individual_times = []
+#     for seed in range(seed_min, seed_max):
+#         random.seed(seed)
+#         print("\n\n\n")
+#         print("Running SOFT KER test, instance "+str(seed))
+#         print("\n\n\n")
     
-        env = MetareasoningEnv()
-        observation = env.reset()
-        done = False
-        total_time = 0
-        total_meta_reward = 0 
-        single_run_individual_hard_kSR_times = []
-        while not done:
-            action = 1
-            #TODO: use this to stochastically choose expansion strategy
-            prob_kSR = env.is_probably_k_step_reachable(ABSTRACT_STATE_WIDTH, 100, 100)
-            occupancy_frequency = env.get_abstract_occupancy_frequency(env.current_abstract_state)
-            if kSR:
-                action = 0
-            elif occupancy_frequency > 0.5:
-                action = 2
+#         env = MetareasoningEnv()
+#         observation = env.reset()
+#         done = False
+#         total_time = 0
+#         total_meta_reward = 0 
+#         single_run_individual_hard_kSR_times = []
+#         while not done:
+#             action = 1
+#             #TODO: use this to stochastically choose expansion strategy
+#             prob_kSR = env.is_probably_k_step_reachable(ABSTRACT_STATE_WIDTH, 100, 100)
+#             occupancy_frequency = env.get_abstract_occupancy_frequency(env.current_abstract_state)
+#             if kSR:
+#                 action = 0
+#             elif occupancy_frequency > 0.5:
+#                 action = 2
 
-            observation, reward, done, _ = env.step(action)
-            print("Observation:", observation)
-            print("Reward:", reward)
-            total_time += env.time
-            single_run_individual_times.append(env.time)
-            total_meta_reward += reward
+#             observation, reward, done, _ = env.step(action)
+#             print("Observation:", observation)
+#             print("Reward:", reward)
+#             total_time += env.time
+#             single_run_individual_times.append(env.time)
+#             total_meta_reward += reward
         
-        individual_times.append(single_run_individual_times)
-        times.append(total_time)
-        meta_rewards.append(total_meta_reward)
-        ground_rewards.append(env.ground_reward)
+#         individual_times.append(single_run_individual_times)
+#         times.append(total_time)
+#         meta_rewards.append(total_meta_reward)
+#         ground_rewards.append(env.ground_reward)
 
-    return ground_rewards, times, individual_times, meta_rewards
+#     return ground_rewards, times, individual_times, meta_rewards
 
 def testDQN(seed_min, seed_max):
     times = []
@@ -243,8 +236,6 @@ def testDQN(seed_min, seed_max):
         single_run_individual_times = []
         while not done:
             action, _ = model.predict(observation, deterministic=True)
-            if action == 1: # NOTE: Hack for snowy-pyramid
-                action = 2
             observation, reward, done, info = env.step(int(action))
             total_time += env.time
             single_run_individual_times.append(env.time)
@@ -296,10 +287,10 @@ def main():
     use_PN = False
     use_PG = False
     use_PP = False
-    use_HK = True
+    use_HK = False
     use_SK = False
     use_DQ = True
-    use_GG = True
+    use_GG = False
 
     PN_time = []
     PN_ind_time = []
@@ -330,8 +321,8 @@ def main():
 
     if not JUST_PLOTTING:
 
-        seed_min = 0
-        seed_max = 10
+        seed_min = 51
+        seed_max = 101
    
         if use_PN:
             PN_ground_reward, PN_time, PN_ind_time, PN_meta_reward = testPureNaive(seed_min, seed_max)

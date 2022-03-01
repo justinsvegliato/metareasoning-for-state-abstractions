@@ -8,14 +8,14 @@ from stable_baselines3 import DQN
 
 from metareasoning_env import EXPANSION_STRATEGY_MAP, MetareasoningEnv
 
-RUN_NAME = 'rural-feather-155'
+RUN_NAME = 'fanciful-plant-61'
 RUN_CHECKPOINT = 'final' 
 
 MODEL_DIRECTORY = 'models'
 MODEL_TAG = 'dqn'
 MODEL_PATH = '{}/{}-{}-[{}]'.format(MODEL_DIRECTORY, MODEL_TAG, RUN_NAME, RUN_CHECKPOINT)
 
-DETERMINISTIC = False
+DETERMINISTIC = True
 
 # TODO Make this consistent across files
 ROWS = 2
