@@ -3,8 +3,8 @@ import logging
 import cplex_mdp_solver
 from partially_abstract_mdp import PartiallyAbstractMDP
 
-GREEDY_LOOKAHEAD_MULTIPLIER = 3
-PROACTIVE_LOOKAHEAD_MULTIPLIER = 3
+GREEDY_LOOKAHEAD_MULTIPLIER = 1
+PROACTIVE_LOOKAHEAD_MULTIPLIER = 2
 
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 

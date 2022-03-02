@@ -27,7 +27,7 @@ REWARD_ACTION = 'IMAGE'
 HEATMAP_DIRECTORY = 'heatmaps'
 HEATMAP_NAME_TEMPLATE = '{}-[{}]-{}-{}'
 HEATMAP_PATH_TEMPLATE = '{}/{}'
-HEATMAPS = 1
+HEATMAPS = 10
 
 logging.basicConfig(format='[%(asctime)s|%(module)-30s|%(funcName)-10s|%(levelname)-5s] %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
@@ -69,11 +69,11 @@ def save_heatmap(env, decisions, heatmap_name):
     plt.figure(figsize=(8, 3))
     plt.rcParams["hatch.linewidth"] = 4
 
-    sns.set(font_scale=1.1)
+    sns.set(font_scale=1.2)
     sns.set_style({'font.family': 'serif', 'font.serif': 'Times New Roman'})
 
-    cmaps = ['Blues', 'Reds', 'Greens'] * len(EXPANSION_STRATEGY_MAP)
-    _, axes = plt.subplots(len(EXPANSION_STRATEGY_MAP) * ROWS, 1, figsize=(11, 5), gridspec_kw={'hspace': 0, 'wspace': 0})
+    cmaps = ['Blues', 'Oranges', 'Greens'] * len(EXPANSION_STRATEGY_MAP)
+    _, axes = plt.subplots(len(EXPANSION_STRATEGY_MAP) * ROWS, 1, figsize=(12, 4), gridspec_kw={'hspace': 0, 'wspace': 0})
 
     for row_index, (row, axis, cmap) in enumerate(zip(heatmap_matrix, axes, cmaps)):
         sub_heatmap_matrix = np.reshape(row, (len(row), 1)).T
